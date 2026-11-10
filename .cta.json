@@ -14,12 +14,5 @@
   "intent": true,
   "version": 1,
   "framework": "react",
-  "chosenAddOns": [
-    "nitro",
-    "convex",
-    "shadcn",
-    "t3env",
-    "better-auth",
-    "posthog"
-  ]
+  "chosenAddOns": ["nitro", "convex", "shadcn", "t3env", "better-auth", "posthog"]
 }

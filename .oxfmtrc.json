@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "ignorePatterns": [
+    ".agents/skills/better-auth-best-practices/**",
+    ".agents/skills/convex-expert/**",
+    ".agents/skills/convex-reviewer/**",
+    ".agents/skills/convex-test/**",
+    ".agents/skills/effect-ts/**",
+    ".agents/skills/find-skills/**",
+    ".agents/skills/shadcn/**",
+    ".agents/skills/unslop/**",
+    "apps/web/src/routeTree.gen.ts",
+    "apps/web/src/components/ui/**",
+    "convex/_generated/**",
+    "convex/betterAuth/_generated/**",
+    "convex/betterAuth/schema.ts"
+  ],
+  "printWidth": 100,
+  "semi": false,
+  "singleQuote": true,
+  "trailingComma": "all"
+}

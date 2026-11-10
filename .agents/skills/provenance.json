@@ -1,0 +1,59 @@
+{
+  "source": "Existing upstream skills were migrated unchanged from the old Affect checkout; unslop and find-skills were installed from pinned revisions recorded below.",
+  "skills": {
+    "convex-expert": {
+      "source": "get-convex/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/convex-expert/SKILL.md",
+      "computedHash": "5f1437f333902dcc030a1c9d8a46fe0b4a82741a36cfdb527120ea895359ec0a"
+    },
+    "convex-reviewer": {
+      "source": "convex/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/convex-reviewer/SKILL.md",
+      "computedHash": "a1875e2ec2982f65400ac96625c2dbd19d9cd3523dfc4140d782d97466413670"
+    },
+    "convex-test": {
+      "source": "convex/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/convex-test/SKILL.md",
+      "computedHash": "8d782d8ad6f6e43d85e8fb9966a01d49bd007451f950108894a64b1e7da2fceb"
+    },
+    "effect-ts": {
+      "source": "Effect-TS/skills",
+      "sourceType": "github",
+      "skillPath": "skills/effect-ts/SKILL.md",
+      "computedHash": "cb225ba5dda169883dfee680fba6c570c89245ba19242a9bc5c3f2ac8218a55f"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "sourceRevision": "d3701c11b1101251af14c9d148f026e1a47ebe17",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "computedHash": "c00eeea0e13e74fe4a9d84ba0a8542205a1b736d65f13134fe1a6647eb14976f"
+    },
+    "shadcn": {
+      "source": "shadcn-ui/ui",
+      "sourceType": "github",
+      "skillPath": "skills/shadcn/SKILL.md",
+      "computedHash": "b864a958765563321f485a96f4d59c0bb6539f4286ab6d8b8b66895b7ebd302d"
+    },
+    "unslop": {
+      "source": "cursor/plugins",
+      "sourceType": "github",
+      "sourceRevision": "0bb6f379f2c3cd07c92a4e0bfa815ffa773bd4f3",
+      "skillPath": "pstack/skills/unslop/SKILL.md",
+      "computedHash": "ccab208e315ce05e2fab8eeee2f7879f1289b5c6844840b2d307adf31c79144f"
+    }
+  },
+  "localSkills": [
+    "setup-project",
+    "software-factory",
+    "tanstack-dev-loop",
+    "tanstack-generation-diagnosis"
+  ],
+  "intentionallyNotCopied": {
+    "next-dev-loop": "Next-only dev server and /_next/mcp; replaced by tanstack-dev-loop.",
+    "vercel-react-best-practices": "Broad React/Next rule set with framework-specific APIs; omit from surfaced skills."
+  }
+}

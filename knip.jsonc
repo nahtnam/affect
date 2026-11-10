@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "ignoreFiles": [".agents/**", "apps/web/src/components/ui/**"],
+  "ignoreIssues": {
+    "apps/web/src/components/ui/**": ["exports"],
+  },
+  "ignoreDependencies": [
+    "@effect/language-service",
+    "auth",
+    // Mise sources Affect CLI for local env profile activation.
+    "affect-cli",
+    // Managed AGENTS commands invoke Intent through bunx.
+    "@tanstack/intent",
+  ],
+}

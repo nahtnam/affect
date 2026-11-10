@@ -1,275 +1,102 @@
-Welcome to your new TanStack Start app!
+# Affect
 
-# Getting Started
+Affect is a product in discovery. The current public home and authenticated app are boilerplate placeholders. See PROJECT.md for confirmed decisions and open questions.
 
-To run this application:
+## Workspace
 
-```bash
-bun install
-bun --bun run dev
-```
+- Root: shared Bun tooling, lockfile, Mise configuration and Convex backend.
+- Web: apps/web, a TanStack Start application using Vite.
+- Backend: convex/ at the repository root.
+- Workspace patterns support future apps/* and packages/* without placeholder packages.
 
-# Building For Production
+## Local setup
 
-To build this application for production:
+Use Bun 1.4.4 and Node 24.22.2 via Mise.
 
-```bash
-bun --bun run build
-```
+From a fresh noninteractive shell at the repository root:
 
-## Styling
+1. Install Mise using its [official instructions](https://mise.jdx.dev/installing-mise.html). Mise is the bootstrap prerequisite; record the installed version.
+2. Trust the project config and install the pinned tools without loading project environment directives:
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
-
-### Removing Tailwind CSS
-
-If you prefer not to use Tailwind CSS:
-
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Remove `@tailwindcss/vite` and `tailwindcss` from `package.json`
-
-
-## Deploy with Nitro
-
-This project uses Nitro as a generic server adapter, so it can run on any Node-compatible host.
-
-```bash
-npm run build
-node .output/server/index.mjs
-```
-
-The build output is a self-contained Node server. To deploy, push the `.output/` directory to your host (Render, Fly.io, your own VPS, etc.) and run the server command above.
-
-For host-specific presets (Vercel, Netlify, Cloudflare, AWS Lambda, etc.) and tuning, see https://v3.nitro.build/deploy.
-
-
-## Setting up Convex
-
-- Set the `VITE_CONVEX_URL` and `CONVEX_DEPLOYMENT` environment variables in your `.env.local`. (Or run `bunx --bun convex init` to set them automatically.)
-- Run `bunx --bun convex dev` to start the Convex server.
-
-
-## Shadcn
-
-Add components using the latest version of [Shadcn](https://ui.shadcn.com/).
-
-```bash
-pnpm dlx shadcn@latest add button
-```
-
-
-## T3Env
-
-- You can use T3Env to add type safety to your environment variables.
-- Add Environment variables to the `src/env.mjs` file.
-- Use the environment variables in your code.
-
-### Usage
-
-```ts
-import { env } from "#/env";
-
-console.log(env.VITE_APP_TITLE);
-```
-
-
-
-
-
-## Setting up Better Auth
-
-1. Generate and set the `BETTER_AUTH_SECRET` environment variable in your `.env.local`:
-
-   ```bash
-   bunx --bun @better-auth/cli secret
+   ```sh
+   mise trust mise.toml
+   MISE_NO_ENV=1 mise install
    ```
 
-2. Visit the [Better Auth documentation](https://www.better-auth.com) to unlock the full potential of authentication in your app.
+3. Install the frozen workspace dependencies with the pinned Bun, still without loading project environment directives:
 
-### Adding a Database (Optional)
+   ```sh
+   MISE_NO_ENV=1 mise exec -- bun install --frozen-lockfile
+   ```
 
-Better Auth can work in stateless mode, but to persist user data, add a database:
+4. Provision encrypted profile ciphertext through the task-approved path and place it at `env/development/.env`; for another selected profile, use `env/<profile>/.env`. This checkout intentionally contains no encrypted profiles. Supply only the matching `DOTENV_PRIVATE_KEY` to the command that needs it. The root `.env.example` lists variable names only; it is not a profile or target configuration. Do not copy old profiles or keys, and do not print `affect env` output. For a clean development launch, unset inherited `VERCEL_ENV`, `CI`, and `GITHUB_ACTIONS` unless you deliberately intend another profile; profile selection prefers `VERCEL_ENV`, then CI/GitHub Actions, then `development`.
+5. Start the Portless development app through Mise:
 
-```typescript
-// src/lib/auth.ts
-import { betterAuth } from "better-auth";
-import { Pool } from "pg";
+   ```sh
+   mise exec -- bun run dev
+   ```
 
-export const auth = betterAuth({
-  database: new Pool({
-    connectionString: process.env.DATABASE_URL,
-  }),
-  // ... rest of config
-});
+   Mise loads the selected profile through the installed Affect CLI activation script for this command. This starts the web app only; it does not start a Convex watcher or synchronize backend settings. Use the advertised origin for browser requests and backend auth trust. In Vite development, Portless provides the origin through `PORTLESS_URL`, so `VITE_SITE_URL` may be blank for this launch mode.
+
+   For direct loopback instead, run `mise exec -- bun run dev:localhost` and set `VITE_SITE_URL` to the exact origin `http://localhost:3000` in the selected profile. Hosted authentication also requires `VITE_SITE_URL` to equal the exact public origin, including scheme and port if present. In these modes, the selected Convex deployment's `SITE_URL` and `TRUSTED_ORIGINS` must accept that same origin. Keep each browser origin and its backend auth configuration aligned.
+
+For another command that needs the selected profile without loading it into the shell, run `mise exec -- bunx --no-install affect run -- <command>`. `affect env` prints shell exports and its output contains secrets. App startup does not synchronize backend settings or deploy code; those are separate operations described under Convex operations.
+
+For the local keyless equivalent of CI, run the quality gate with profile-loading directives disabled and no app key:
+
+```sh
+MISE_NO_ENV=1 mise exec -- bun run check
 ```
 
-Then run migrations:
+This is keyless, not offline: a clean tool and package install requires network access. Starting the web server does not start Convex, provision settings, or sync remote state. Do not copy old encrypted profiles or keys. Missing profile values and hosted targets are prerequisites to resolve, not guessed defaults.
 
-```bash
-bunx --bun @better-auth/cli migrate
-```
+## Environment contract
 
+Vite publishes `VITE_` values by default, so treat every such value as public and keep server secrets unprefixed. The web env module now passes five named public values into the app configuration rather than handing the full runtime env object to T3. A synthetic production transform confirmed that unrelated prefixed and unprefixed markers were absent; Vite development still uses its normal prefix behavior, so this is not a hard development allowlist. The root template remains a list of names, not an exposure control.
 
-## Setting up PostHog
+The browser build requires `VITE_CONVEX_URL` and `VITE_CONVEX_SITE_URL` as HTTP(S) origins. `VITE_SITE_URL` may be blank for the root Portless development command, which supplies `PORTLESS_URL`; direct loopback and hosted authentication require it to be the exact browser origin. `VITE_POSTHOG_HOST` and `VITE_POSTHOG_KEY` are optional public analytics settings; analytics is omitted when the pair is absent or invalid. These variables and the Better Auth browser client do not contain server credentials.
 
-1. Create a PostHog account at [posthog.com](https://posthog.com)
-2. Get your Project API Key from [Project Settings](https://app.posthog.com/project/settings)
-3. Set `VITE_POSTHOG_KEY` in your `.env.local`
+The Convex server declaration requires `BETTER_AUTH_SECRET`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `EMAIL_FROM`, `SITE_URL`, `TRUSTED_ORIGINS`, and `POSTHOG_PROJECT_TOKEN`. The Better Auth secret must be at least 32 characters; `SITE_URL` and each trusted origin must be HTTP(S) origins. An empty PostHog project token disables analytics; `POSTHOG_HOST` is optional. Keep these values unprefixed in the encrypted profile. `DOTENV_PRIVATE_KEY` decrypts the selected profile; `CONVEX_DEPLOY_KEY` identifies a deployment for CLI operations and must remain secret. The profile selector prefers `VERCEL_ENV`, then CI/GitHub Actions, then `development`; preview, production and CI profiles are separate. No profile ciphertext, keys, or target values are checked in.
 
-### Optional Configuration
+## Current root commands
 
-- `VITE_POSTHOG_HOST` - Set this if you're using PostHog Cloud EU (`https://eu.i.posthog.com`) or self-hosting
+- bun run dev: Portless front door for the web app.
+- bun run dev:localhost: direct loopback web server.
+- bun run build, bun run start, bun run preview: app build and runtime commands.
+- bun run typecheck: root, Convex and web type checks.
+- bun run test: Vitest tests.
+- bun run lint, bun run format:check, bun run knip: focused quality tools.
+- bun run check: sequential broad quality pipeline used by CI.
 
+For ordinary changes, use the focused adjacent test(s) and necessary typecheck; a full check/build is not the default.
 
+## Convex operations
 
-## Routing
+A Convex watcher or command may affect remote state. Before running one, resolve the exact account/team, project, deployment and development/preview/production environment, then confirm the task authorizes that action.
 
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
+- Native bunx --no-install convex dev watches functions and can push them to the selected development deployment. It is not part of frontend startup.
+- Native `bunx --no-install convex codegen` writes generated files locally. It does not deploy running functions, but this project's component discovery may need a verified development target context. Never hand-edit `convex/_generated`.
+- Native Convex env list/get/set supports backend settings. Use only for an authorized exact target and preserve secrets in protected inputs rather than shell arguments.
+- `MISE_NO_ENV=1 mise exec -- bunx --no-install affect env sync-dev` reads the development profile directly, verifies its development-scoped key against deployment identity and canonical `VITE_CONVEX_URL` / `VITE_CONVEX_SITE_URL` values, then writes only present settings declared by `convex/env.config.ts`. Provide the matching development `DOTENV_PRIVATE_KEY`. This is a remote environment mutation, not a code deployment: resolve and authorize the exact team, project and development deployment separately. Never run it automatically at app startup.
+- `mise exec -- bunx --no-install affect deploy` requires `VERCEL_ENV=preview` or `production`, the matching encrypted profile and key, and `VERCEL_GIT_COMMIT_REF` for preview. During the native Convex deploy callback, the CLI writes declared settings before the TanStack build and final backend push. Settings can change even if the build fails. The command may push Convex functions, schema and indexes; it does not publish frontend assets. Resolve and authorize the exact target separately. Do not use it as local setup or add `NEXT_PUBLIC_*` aliases.
 
-### Adding A Route
+There is no repository deploy script or selected frontend host. Hosting and deployment remain separate from local setup.
 
-To add a new route to your application just add a new file in the `./src/routes` directory.
+## Backend and frontend deployment
 
-TanStack will automatically generate the content of the route file for you.
+No root deploy script or reusable provider target is configured in the checked-in workspace. An isolated hosted development deployment was used for owner-reported checks, but its current state is not reverified here. No deployment authorization is implied. Do not run deployment commands as local setup.
 
-Now that you have two routes you can use a `Link` component to navigate between them.
+The native Convex pattern `bunx --no-install convex deploy --cmd 'bun run build'` runs the web build as part of a backend deployment. The pinned Convex CLI detects Vite/TanStack from the root manifest and supplies both `VITE_CONVEX_URL` and `VITE_CONVEX_SITE_URL` to the build command; this behavior was confirmed by installed-source inspection, not by running a deploy. The command can push Convex functions, schema and indexes to the selected deployment; it does not publish frontend assets to a hosting provider. Target resolution can select the project's default production deployment when `CONVEX_DEPLOYMENT` is set. Before any use, resolve the exact account/team, project, deployment and environment, then confirm the task authorizes that write. This documented native pattern is not a configured script or approved deployment plan.
 
-### Adding Links
+Affect's app consumes `VITE_CONVEX_SITE_URL` for Better Auth. Convex's installed Vite/TanStack detection supplies both public URLs to the child build. The frontend host and publish step remain undecided. During the native Convex deploy callback, Affect CLI 0.0.5 writes the selected preview/production profile's declared settings before the TanStack build and final backend push. A build failure does not roll back that environment write; backend deployment and environment configuration require exact-target authorization. The CLI does not publish frontend assets.
 
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
+## Development references
 
-```tsx
-import { Link } from "@tanstack/react-router";
-```
+- TanStack Start: https://tanstack.com/start/latest
+- Convex + Better Auth + TanStack Start: https://labs.convex.dev/better-auth/framework-guides/tanstack-start
+- Convex + TanStack Query: https://docs.convex.dev/client/tanstack/tanstack-query
+- Native Convex deploy command and target selection: https://docs.convex.dev/cli/reference/deploy
+- Convex environment settings: https://docs.convex.dev/production/environment-variables
+- TanStack Intent setup: https://tanstack.com/intent/latest/docs/getting-started/quick-start-consumers
 
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+The combined integration guide is a starting point. This project additionally requires confirmed absence of a session to be distinguished from service/adapter failure; a token 401 by itself is ambiguous.

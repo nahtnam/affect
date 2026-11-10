@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/@effect/tsgo/schema.json",
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client", "node"],
+    "paths": {
+      "#/*": ["./src/*"],
+      "@/*": ["./src/*"],
+      "@convex/*": ["../../convex/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", "**/*.mts"],
+  "exclude": ["node_modules", "dist", ".output"]
+}

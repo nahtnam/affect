@@ -1,0 +1,23 @@
+name: check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      MISE_NO_ENV: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5
+        with:
+          version: 2026.11.1
+      - run: mise trust mise.toml
+      - run: mise install
+      - run: bun install --frozen-lockfile
+      - run: bun run check

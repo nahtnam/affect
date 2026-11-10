@@ -1,0 +1,7 @@
+[tools]
+bun = "1.4.4"
+node = "24.22.2"
+
+[env]
+NODE_USE_ENV_PROXY = "1"
+_.source = { path = "node_modules/affect-cli/scripts/activate.sh", tools = true, redact = true }
