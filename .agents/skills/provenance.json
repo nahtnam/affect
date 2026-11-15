@@ -46,12 +46,7 @@
       "computedHash": "ccab208e315ce05e2fab8eeee2f7879f1289b5c6844840b2d307adf31c79144f"
     }
   },
-  "localSkills": [
-    "setup-project",
-    "software-factory",
-    "tanstack-dev-loop",
-    "tanstack-generation-diagnosis"
-  ],
+  "localSkills": ["software-factory", "tanstack-dev-loop", "tanstack-generation-diagnosis"],
   "intentionallyNotCopied": {
     "next-dev-loop": "Next-only dev server and /_next/mcp; replaced by tanstack-dev-loop.",
     "vercel-react-best-practices": "Broad React/Next rule set with framework-specific APIs; omit from surfaced skills."

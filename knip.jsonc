@@ -1,5 +1,9 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  // Bash setup and Mise activation invoke this native helper outside the TS import graph.
+  "workspaces": {
+    ".": { "entry": ["scripts/validate-development-setup.ts"] },
+  },
   "ignoreFiles": [".agents/**", "apps/web/src/components/ui/**"],
   "ignoreIssues": {
     "apps/web/src/components/ui/**": ["exports"],

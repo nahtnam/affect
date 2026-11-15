@@ -55,7 +55,7 @@ This checklist carries the complete 29-entry old-checkout inventory into the Tan
 | convex-test                 | Retain upstream unchanged; task-focused local tests.                                 | .agents/skills/convex-test; copied and hash recorded.                |
 | effect-ts                   | Retain upstream unchanged; use installed Effect 4, no skill-triggered install.       | .agents/skills/effect-ts; copied and hash recorded.                  |
 | next-dev-loop               | Omit Next-specific runtime and /_next/mcp behavior.                                  | Replaced by .agents/skills/tanstack-dev-loop.                        |
-| setup-project               | Rewrite project-owned framework/environment instructions.                            | .agents/skills/setup-project.                                        |
+| Normal repository setup     | Use the shared noninteractive development command and ordinary repository guidance.  | `bash scripts/setup.sh`; README.md and AGENTS.md.                    |
 | shadcn                      | Retain upstream tree unchanged with source hash.                                     | .agents/skills/shadcn; copied and hash recorded.                     |
 | software-factory            | Rewrite Next data.ts and verification mechanics into TanStack idioms.                | .agents/skills/software-factory.                                     |
 | vercel-react-best-practices | Omit broad Next-specific rules from surfaced set; retain old source unchanged.       | No destination copy.                                                 |
