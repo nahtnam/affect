@@ -15,6 +15,7 @@ import { contains, findFirst, map } from 'effect/Array'
 import { FetchHttpClient } from 'effect/http'
 import { match } from 'effect/Option'
 
+import { appName } from '../app-config'
 import { components } from './_generated/api'
 import type { DataModel } from './_generated/dataModel'
 import type { QueryCtx } from './_generated/server'
@@ -82,7 +83,7 @@ const enforceOtpRecipientLimit = Effect.fn('Auth.enforceOtpRecipientLimit')(
 
 const authOptions = (ctx: GenericCtx<DataModel>, otpPlugin: typeof emailOTPPlugin) =>
   ({
-    appName: 'Affect',
+    appName,
     database: authComponent.adapter(ctx),
     hooks: {
       before: createAuthMiddleware((hookContext) =>
