@@ -27,7 +27,7 @@ The public home and authenticated app placeholders are migration baseline behavi
 
 ## Setup and runtime status
 
-- Bun 1.4.4 and Node 24.22.2 are pinned through Mise.
+- `bash scripts/setup.sh` is the shared local/cloud development setup command. It installs Mise and the pinned Bun 1.4.4 / Node 24.22.2 plus frozen dependencies, validates supplied development ciphertext, and saves only its matching key in an ignored owner-only file for later native activation. Subsequent fresh-shell commands use `VERCEL_ENV=development ~/.local/bin/mise exec -- <command>`; setup exports are not assumed to survive. No generic Start/setup skill is required.
 - Root scripts currently include dev (Portless), dev:localhost, build, start, preview, typecheck, lint, format, format:check, test, knip, and check. The focused check workflow is the relevant default; broad check is not needed for every edit.
 - Encrypted development/preview/production/CI profiles are not present in the current worktree. Do not copy profiles, keys, or project identifiers from the old checkout. The root `.env.example` contains public variable names only. The web env source now uses named public reads, and a synthetic production transform excluded unrelated markers; Vite development still follows its normal `VITE_` convention, so no hard development allowlist is claimed.
 - `VITE_SITE_URL` may be blank only for the root Portless development path, where auth reads the advertised `PORTLESS_URL`. Direct loopback and hosted auth require the exact browser origin in `VITE_SITE_URL`, with matching `SITE_URL` and `TRUSTED_ORIGINS` in the selected Convex deployment.

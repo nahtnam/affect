@@ -37,6 +37,15 @@ export default defineConfig({
   },
   overrides: [
     {
+      // Local setup and its fixtures are native process/filesystem boundaries; domain values use Effect Schema.
+      files: ['scripts/validate-development-setup.ts', 'tests/setup.test.ts'],
+      rules: {
+        'effecttsgo/node-builtin-import': 'off',
+        'effecttsgo/process-env': 'off',
+        'node/no-process-env': 'off',
+      },
+    },
+    {
       // Vite 8.3.6 declares these names as interfaces for global declaration merging; remove when that API changes.
       files: ['apps/web/src/vite-env.d.ts'],
       rules: {

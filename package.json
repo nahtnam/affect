@@ -35,6 +35,8 @@
   },
   "devDependencies": {
     "@convex-dev/eslint-plugin": "5.0.1",
+    "@dotenvx/dotenvx": "2.38.0",
+    "@dotenvx/primitives": "3.3.1",
     "@effect/tsgo": "0.64.1",
     "@effect/vitest": "4.1.2",
     "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",

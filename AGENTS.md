@@ -68,7 +68,6 @@ Read this file and PROJECT.md before product work. The product, buyer, workflow 
 
 Use the narrowest applicable project skill:
 
-- Initial local setup and environment profiles: .agents/skills/setup-project/SKILL.md.
 - A requested complete user-visible feature or migration slice: .agents/skills/software-factory/SKILL.md.
 - Requested or material runtime/browser evidence for UI, navigation, or auth flows: .agents/skills/tanstack-dev-loop/SKILL.md.
 - A reproducible generated-output failure only: .agents/skills/tanstack-generation-diagnosis/SKILL.md.
@@ -113,7 +112,8 @@ Use the narrowest applicable project skill:
 
 ## Environment and local runtime
 
-- Use Bun 1.4.4 and Node 24.22.2 from Mise. On a fresh checkout, install the pinned tools and use bun install --frozen-lockfile. Do not print decrypted profile values or key material.
+- On a fresh checkout, run `bash scripts/setup.sh` from the root. It installs Mise, pinned Bun 1.4.4 / Node 24.22.2 and frozen dependencies, validates development ciphertext and persists only its matching key in ignored owner-only `env/development/.env.keys`. Required inputs are that profile and an actual process `DOTENV_PRIVATE_KEY`; proxy-injected HTTP secrets cannot decrypt it. Use `VERCEL_ENV=development ~/.local/bin/mise exec -- <command>` for ordinary development commands in fresh shells, including cloud runners with ambient CI flags. No generic Start/setup skill is required. Do not print decrypted profile values or key material.
+- `scripts/activate.sh` supplies the saved key only for the native-selected development profile when no process key exists, then delegates to the pinned CLI. Other profiles require their own process key. Keep the key file ignored and out of artifacts. Setup never synchronizes settings, starts a backend watcher or writes remotely.
 - Encrypted profiles are separate. The four exact env/{development,preview,production,ci}/.env paths may hold provisioned ciphertext; never unignore keyfiles, private-key assignments, local dotenv files or other dotenv paths. Build packages only the selected encrypted .env through Nitro serverAssets. Production loads it with native dotenvx before dynamically importing the application handler, using only runtime DOTENV_PRIVATE_KEY. Preserve this order and fixed, secret-safe errors; do not add plaintext transport or a process wrapper. Keep secrets unprefixed; only explicitly reviewed public values may use VITE_ names. The named publicEnv array in convex/env.config.ts (re-exported from envDefinition.ts) declares browser-safe additions; canonical Convex URLs remain CLI-owned. Never forward all prefixed variables.
 - Vite publishes `VITE_` values according to its normal public prefix behavior, especially in development. The web env source now uses explicit named reads for its five reviewed public values, and a synthetic production transform excluded unrelated markers; this does not create a hard development allowlist. Keep secrets unprefixed, do not pass the whole `import.meta.env` object through the public config boundary, and recheck transformed output when changing this boundary.
 - The development server binds to loopback and honors a strict port. Root bun run dev is the Portless path; use Portless's advertised scheme/host as the canonical browser origin. The direct bun run dev:localhost fallback is a different origin and must have matching auth trust and cookie behavior. Do not trust forwarding headers globally.
