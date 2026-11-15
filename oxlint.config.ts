@@ -21,6 +21,8 @@ export default defineConfig({
   ],
   ignorePatterns: [
     ...(core.ignorePatterns ?? []),
+    // Downloaded native tools and their caches are local setup artifacts.
+    '.setup.local/**',
     'apps/web/src/routeTree.gen.ts',
     'apps/web/src/components/ui/**',
     'convex/_generated/**',
