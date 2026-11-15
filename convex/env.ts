@@ -1,5 +1,6 @@
 import { Config, ConfigProvider, Effect, Schema, String } from 'effect'
 
+import { appName } from '../app-config'
 import { env } from './_generated/server'
 
 const provider = Effect.sync(() =>
@@ -8,6 +9,7 @@ const provider = Effect.sync(() =>
     CLOUDFLARE_ACCOUNT_ID: env.CLOUDFLARE_ACCOUNT_ID,
     CLOUDFLARE_API_TOKEN: env.CLOUDFLARE_API_TOKEN,
     EMAIL_FROM: env.EMAIL_FROM,
+    EMAIL_FROM_NAME: env.EMAIL_FROM_NAME,
     POSTHOG_HOST: env.POSTHOG_HOST,
     POSTHOG_PROJECT_TOKEN: env.POSTHOG_PROJECT_TOKEN,
     SITE_URL: env.SITE_URL,
@@ -46,6 +48,24 @@ const emailConfig = Config.schema(
     CLOUDFLARE_API_TOKEN: Schema.Redacted(Schema.Trim.check(Schema.isMinLength(1))),
     EMAIL_FROM: Schema.Trim.check(Schema.isMinLength(1)),
   }),
+)
+
+// Validate before trimming so leading/trailing header controls cannot disappear.
+const emailSenderNameConfig = Config.schema(
+  Schema.Struct({
+    EMAIL_FROM_NAME: Schema.optionalKey(
+      Schema.String.check(
+        Schema.makeFilter((name) => !/[\p{Cc}\p{Zl}\p{Zp}]/u.test(name), {
+          expected: 'a sender name without control characters or line separators',
+        }),
+      ),
+    ),
+  }),
+)
+
+export const emailSenderName = provider.pipe(
+  Effect.flatMap((current) => emailSenderNameConfig.parse(current)),
+  Effect.map((settings) => String.trim(settings.EMAIL_FROM_NAME ?? '') || appName),
 )
 
 export const matchesEmailDeployment = (cloudUrl: string) =>

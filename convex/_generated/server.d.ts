@@ -34,6 +34,7 @@ type Env = {
   readonly CLOUDFLARE_ACCOUNT_ID: string;
   readonly CLOUDFLARE_API_TOKEN: string;
   readonly EMAIL_FROM: string;
+  readonly EMAIL_FROM_NAME: string | undefined;
   readonly POSTHOG_HOST: string | undefined;
   readonly POSTHOG_PROJECT_TOKEN: string;
   readonly SITE_URL: string;

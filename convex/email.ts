@@ -1,7 +1,7 @@
-import { Effect, Result, Schema } from 'effect'
+import { Effect, Result, Schema, String } from 'effect'
 import { HttpClient, HttpClientRequest, HttpClientResponse } from 'effect/http'
 
-import { emailEnvironment, emailPreviewSender } from './env'
+import { emailEnvironment, emailPreviewSender, emailSenderName } from './env'
 
 class EmailDeliveryError extends Schema.TaggedError<
   EmailDeliveryError,
@@ -41,6 +41,13 @@ export const sendVerificationCode = Effect.fn('sendVerificationCode')(
     otp: string,
     capture?: (message: RenderedEmail) => void,
   ) {
+    const previewSender = yield* emailPreviewSender
+
+    // Preserve legacy formatted senders without parsing or replacing their embedded name.
+    const legacySender =
+      String.includes('<')(previewSender ?? '') && String.includes('>')(previewSender ?? '')
+
+    const senderName = legacySender ? undefined : yield* emailSenderName
     const settings = yield* Effect.result(emailEnvironment)
 
     if (Result.isFailure(settings)) {
@@ -48,10 +55,8 @@ export const sendVerificationCode = Effect.fn('sendVerificationCode')(
         return yield* Effect.fail(settings.failure)
       }
 
-      const sender = yield* emailPreviewSender
-
       return yield* Effect.sync(() => {
-        capture(renderVerificationEmail(email, otp, sender))
+        capture(renderVerificationEmail(email, otp, previewSender))
       })
     }
 
@@ -63,7 +68,10 @@ export const sendVerificationCode = Effect.fn('sendVerificationCode')(
       `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/email/sending/send`,
     ).pipe(
       HttpClientRequest.bearerToken(env.CLOUDFLARE_API_TOKEN),
-      HttpClientRequest.bodyJson(renderVerificationEmail(email, otp, env.EMAIL_FROM)),
+      HttpClientRequest.bodyJson({
+        ...renderVerificationEmail(email, otp),
+        from: legacySender ? env.EMAIL_FROM : { address: env.EMAIL_FROM, name: senderName },
+      }),
     )
 
     return yield* client

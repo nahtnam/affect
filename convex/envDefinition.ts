@@ -9,6 +9,7 @@ export default {
   CLOUDFLARE_ACCOUNT_ID: v.string(),
   CLOUDFLARE_API_TOKEN: v.string(),
   EMAIL_FROM: v.string(),
+  EMAIL_FROM_NAME: v.optional(v.string()),
   POSTHOG_HOST: v.optional(v.string()),
   // The component requires a string; an empty token disables analytics.
   POSTHOG_PROJECT_TOKEN: v.string(),
