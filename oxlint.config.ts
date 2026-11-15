@@ -44,12 +44,23 @@ export default defineConfig({
       },
     },
     {
-      // Vite's config boundary must read the Portless-provided loopback listener values.
+      // Vite's config boundary reads native process/filesystem values for Portless and encrypted profile packaging.
       files: ['apps/web/vite.config.ts'],
       rules: {
         'effecttsgo/prefer-effect-string': 'off',
+        'effecttsgo/node-builtin-import': 'off',
         'effecttsgo/process-env': 'off',
         'node/no-process-env': 'off',
+      },
+    },
+    {
+      // Native Vite config hooks and their filesystem fixtures validate encrypted build inputs.
+      files: [
+        'apps/web/vite/encrypted-profile-plugin.ts',
+        'apps/web/src/encrypted-profile-plugin.test.ts',
+      ],
+      rules: {
+        'effecttsgo/node-builtin-import': 'off',
       },
     },
     {
@@ -114,9 +125,12 @@ export default defineConfig({
       },
     },
     {
-      // This test starts a real Vite child and loopback HTTP server, then exercises native Fetch manual redirects.
-      // Remove when the fixture no longer uses Node HTTP/process or when Effect tsgo recognizes these test boundaries.
-      files: ['apps/web/src/auth/initial-response.test.ts'],
+      // These fixtures use native Node filesystem/process or HTTP APIs at their test boundaries.
+      // Remove when the fixtures no longer use those APIs or Effect tsgo recognizes these boundaries.
+      files: [
+        'apps/web/src/auth/initial-response.test.ts',
+        'apps/web/src/runtime-env.server.test.ts',
+      ],
       rules: {
         'effecttsgo/global-fetch': 'off',
         'effecttsgo/node-builtin-import': 'off',

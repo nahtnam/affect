@@ -1,6 +1,9 @@
 import type { EnvDefinition } from 'convex/server'
 import { v } from 'convex/values'
 
+// Explicit browser-safe additions; the CLI supplies the canonical Convex URLs.
+export const publicEnv = ['VITE_SITE_URL', 'VITE_POSTHOG_HOST', 'VITE_POSTHOG_KEY'] as const
+
 export default {
   BETTER_AUTH_SECRET: v.string(),
   CLOUDFLARE_ACCOUNT_ID: v.string(),
