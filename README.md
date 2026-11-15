@@ -17,25 +17,27 @@ From the repository root, locally or in a cloud setup field:
 bash scripts/setup.sh
 ```
 
-The command installs Mise, the pinned Bun 1.4.4 and Node 24.22.2, and frozen workspace dependencies, then verifies the **development** profile. It is noninteractive and repeatable. It requires Bash, curl, standard archive utilities, public package/tool download access, provisioned ciphertext at `env/development/.env`, and its matching `DOTENV_PRIVATE_KEY` as an actual environment variable. The template contains no encrypted profile; a key alone cannot create one or configure a backend.
+The command installs Mise, the pinned Bun 1.4.4 and Node 24.22.2, and frozen workspace dependencies, then verifies the **development** profile. It is noninteractive and repeatable. It requires Bash, curl, standard filesystem/archive utilities, public package/tool download access, provisioned ciphertext at `env/development/.env`, and its matching `DOTENV_PRIVATE_KEY` as an actual environment variable. The template contains no encrypted profile; a key alone cannot create one or configure a backend.
 
 The development key is saved locally in ignored `env/development/.env.keys` with owner-only permissions, after successful validation. This lets later commands decrypt the profile even when a cloud provider exposes the key only during setup. Treat this local file as a credential: keep the workspace private, exclude it from artifacts, and delete it when retiring the environment. No decrypted profile or other setup secrets are saved. An HTTP proxy secret is a value injected into outbound HTTP requests; it is not process key material and cannot decrypt a profile. Package-download proxy credentials remain provider-owned and must be available again if a later install needs them.
 
-Run ordinary commands through Mise; its standard installation path works in a fresh noninteractive shell without relying on setup exports or shell startup files:
+Run ordinary commands through the repository's Mise entry point. It restores the selected native paths before invoking Mise, including in fresh noninteractive shells with a read-only HOME:
 
 ```sh
-VERCEL_ENV=development ~/.local/bin/mise exec -- bun run dev
-VERCEL_ENV=development ~/.local/bin/mise exec -- bun run test -- tests/effect.test.ts
+VERCEL_ENV=development bash scripts/mise.sh exec -- bun run dev
+VERCEL_ENV=development bash scripts/mise.sh exec -- bun run test -- tests/effect.test.ts
 ```
 
-An already installed and activated Mise can be used normally. Explicit `VERCEL_ENV=development` keeps cloud runners with `CI=true` on the intended development profile. Setup always validates development but does not change native profile selection: `VERCEL_ENV`, then exact `CI=true` / `GITHUB_ACTIONS=true`, otherwise `development`. The stored development key is used only for development and only when no process `DOTENV_PRIVATE_KEY` is supplied. Preview, production and CI require their own matching process key; they never fall back to the saved development key.
+Setup preserves HOME and reuses an existing executable Mise when available. It respects explicit native directory settings and selects writable defaults, falling back to ignored `.setup.local` storage in the repository. Native path settings persist as data in owner-only `.setup.local/toolchain.paths`; keys, profile selectors and proxy credentials are excluded. Keep this local state out of exported artifacts. To change a native path, rerun setup with that setting.
+
+Explicit `VERCEL_ENV=development` keeps cloud runners with `CI=true` on the intended development profile. Setup always validates development but does not change native profile selection: `VERCEL_ENV`, then exact `CI=true` / `GITHUB_ACTIONS=true`, otherwise `development`. The stored development key is used only for development and only when no process `DOTENV_PRIVATE_KEY` is supplied. Preview, production and CI require their own matching process key; they never fall back to the saved development key.
 
 `bun run dev` starts only the Portless web app. Use the advertised origin for browser requests and backend auth trust; Portless supplies `PORTLESS_URL`, so `VITE_SITE_URL` may be blank for this mode. For direct loopback, use `bun run dev:localhost` through the same Mise command and set `VITE_SITE_URL` to `http://localhost:3000`. Hosted authentication also requires the exact public origin, with matching `SITE_URL` and `TRUSTED_ORIGINS` in the selected backend. Setup does not modify those settings, start a Convex watcher, sync, provision or deploy.
 
 For keyless checks, disable profile directives:
 
 ```sh
-MISE_NO_ENV=1 ~/.local/bin/mise exec -- bun run test -- tests/effect.test.ts
+MISE_NO_ENV=1 bash scripts/mise.sh exec -- bun run test -- tests/effect.test.ts
 ```
 
 `affect env` prints secret-bearing shell exports; do not log it. Missing profile/key, invalid ciphertext, wrong key or incomplete public origins fail setup with a secret-safe error. Use the repository's normal instructions for subsequent work; there is no generic Start or setup skill to invoke.
@@ -79,8 +81,8 @@ A Convex watcher or command may affect remote state. Before running one, resolve
 - Native bunx --no-install convex dev watches functions and can push them to the selected development deployment. It is not part of frontend startup.
 - Native `bunx --no-install convex codegen` writes generated files locally. It does not deploy running functions, but this project's component discovery may need a verified development target context. Never hand-edit `convex/_generated`.
 - Native Convex env list/get/set supports backend settings. Use only for an authorized exact target and preserve secrets in protected inputs rather than shell arguments.
-- `MISE_NO_ENV=1 mise exec -- bunx --no-install affect env sync-dev` reads the development profile directly, verifies its development-scoped key against deployment identity and canonical `VITE_CONVEX_URL` / `VITE_CONVEX_SITE_URL` values, then writes only present settings declared by `convex/env.config.ts`. Provide the matching development `DOTENV_PRIVATE_KEY`. This is a remote environment mutation, not a code deployment: resolve and authorize the exact team, project and development deployment separately. Never run it automatically at app startup.
-- `mise exec -- bunx --no-install affect deploy` requires `VERCEL_ENV=preview` or `production`, the matching encrypted profile and key, and `VERCEL_GIT_COMMIT_REF` for preview. During the native Convex deploy callback, the CLI writes declared settings before the TanStack build and final backend push. Settings can change even if the build fails. The command may push Convex functions, schema and indexes; it does not publish frontend assets. Resolve and authorize the exact target separately. Do not use it as local setup or add `NEXT_PUBLIC_*` aliases.
+- `MISE_NO_ENV=1 bash scripts/mise.sh exec -- bunx --no-install affect env sync-dev` reads the development profile directly, verifies its development-scoped key against deployment identity and canonical `VITE_CONVEX_URL` / `VITE_CONVEX_SITE_URL` values, then writes only present settings declared by `convex/env.config.ts`. Provide the matching development `DOTENV_PRIVATE_KEY`. This is a remote environment mutation, not a code deployment: resolve and authorize the exact team, project and development deployment separately. Never run it automatically at app startup.
+- `bash scripts/mise.sh exec -- bunx --no-install affect deploy` requires `VERCEL_ENV=preview` or `production`, the matching encrypted profile and key, and `VERCEL_GIT_COMMIT_REF` for preview. During the native Convex deploy callback, the CLI writes declared settings before the TanStack build and final backend push. Settings can change even if the build fails. The command may push Convex functions, schema and indexes; it does not publish frontend assets. Resolve and authorize the exact target separately. Do not use it as local setup or add `NEXT_PUBLIC_*` aliases.
 
 There is no repository deploy script or selected frontend host. Hosting and deployment remain separate from local setup.
 
@@ -95,6 +97,7 @@ Affect's app consumes `VITE_CONVEX_SITE_URL` for Better Auth. Convex's installed
 ## Development references
 
 - [Mise installation and pinned installer options](https://mise.jdx.dev/installing-mise.html)
+- [Mise native directory settings](https://mise.jdx.dev/directories.html)
 - [Mise environment directives and keyless execution](https://mise.jdx.dev/environments/)
 - [dotenvx private key files](https://trust.dotenvx.com/docs/env-keys-file)
 - TanStack Start: https://tanstack.com/start/latest
