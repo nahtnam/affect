@@ -11,6 +11,10 @@ dist-ssr
 **/.env.keys
 **/.env.*.keys
 env/*/.env
+!env/development/.env
+!env/preview/.env
+!env/production/.env
+!env/ci/.env
 .nitro
 .tanstack
 .wrangler
