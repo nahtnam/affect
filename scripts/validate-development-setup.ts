@@ -166,8 +166,8 @@ const validateCiphertext = (source: string) => {
 }
 
 const validateNativeValues = (): void => {
-  // Resolve the API through the pinned CLI dependency, including Bun's layout.
-  const require = createRequire(import.meta.resolve('affect-cli/package.json'))
+  // Resolve the explicitly pinned setup dependency at this workspace boundary.
+  const require = createRequire(import.meta.url)
   const api: unknown = require('@dotenvx/dotenvx')
 
   if (!Schema.is(dotenvxApi)(api)) {

@@ -6,7 +6,6 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  realpathSync,
   renameSync,
   rmSync,
   statSync,
@@ -26,9 +25,7 @@ const bun = String.trim(
   execFileSync('bun', ['-e', 'process.stdout.write(process.execPath)'], { encoding: 'utf-8' }),
 )
 
-const require = createRequire(
-  realpathSync(path.join(repository, 'node_modules/affect-cli/package.json')),
-)
+const require = createRequire(import.meta.url)
 
 type DotenvKeyPair = { privateKey: string; publicKey: string }
 
