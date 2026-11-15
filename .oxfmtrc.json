@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "ignorePatterns": [
+    ".setup.local/**",
     ".agents/skills/better-auth-best-practices/**",
     ".agents/skills/convex-expert/**",
     ".agents/skills/convex-reviewer/**",

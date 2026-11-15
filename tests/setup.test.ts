@@ -78,6 +78,37 @@ const profilePath = (target = 'development') => path.join(fixture, 'env', target
 
 const keyPath = () => path.join(fixture, 'env/development/.env.keys')
 
+const toolchainPaths = () => path.join(fixture, '.setup.local/toolchain.paths')
+
+const nativeDirectoryVariables = [
+  'MISE_CONFIG_DIR',
+  'MISE_DATA_DIR',
+  'MISE_CACHE_DIR',
+  'MISE_STATE_DIR',
+  'MISE_TMP_DIR',
+  'MISE_INSTALLS_DIR',
+  'MISE_INSTALL_STORE_DIR',
+  'MISE_PLUGINS_DIR',
+  'MISE_DOWNLOADS_DIR',
+  'MISE_SHIMS_DIR',
+  'XDG_CONFIG_HOME',
+  'XDG_DATA_HOME',
+  'XDG_CACHE_HOME',
+  'XDG_STATE_HOME',
+  'BUN_INSTALL',
+  'BUN_INSTALL_CACHE_DIR',
+  'BUN_INSTALL_GLOBAL_DIR',
+  'BUN_INSTALL_BIN',
+  'BUN_RUNTIME_TRANSPILER_CACHE_PATH',
+  'BUN_TMPDIR',
+  'TMPDIR',
+  'PORTLESS_STATE_DIR',
+]
+
+const decodeToolchain = Schema.decodeUnknownSync(
+  Schema.fromJsonString(Schema.Record(Schema.String, Schema.NullOr(Schema.String))),
+)
+
 const writeProfile = (overrides: Record<string, string> = {}, target = 'development') => {
   const pair = primitives.keypair()
   mkdirSync(path.dirname(profilePath(target)), { recursive: true })
@@ -113,6 +144,20 @@ const setup = (extra: Record<string, string> = {}) =>
     timeout: 15_000,
   })
 
+// A stub isolates persistence and credential boundaries. Native read-only-HOME
+// portability requires the separate Linux execution proof, not these fixtures.
+const inspectToolchain = (extra: Record<string, string> = {}, arguments_: string[] = []) =>
+  spawnSync(
+    '/bin/bash',
+    ['scripts/mise.sh', 'exec', '--', 'bun', 'inspect-toolchain.ts', ...arguments_],
+    {
+      cwd: fixture,
+      env: environment(extra),
+      encoding: 'utf-8',
+      timeout: 15_000,
+    },
+  )
+
 const activate = (extra: Record<string, string> = {}) =>
   spawnSync(
     '/bin/bash',
@@ -145,15 +190,30 @@ describe('local development setup', () => {
     symlinkSync(path.resolve(repository, 'node_modules'), path.join(fixture, 'node_modules'), 'dir')
     mkdirSync(path.join(home, '.local/bin'), { recursive: true })
     writeFileSync(
+      path.join(fixture, 'inspect-toolchain.ts'),
+      `const names = ${Schema.encodeSync(Schema.fromJsonString(Schema.Array(Schema.String)))(['HOME', 'MISE_INSTALL_PATH', ...nativeDirectoryVariables, 'VERCEL_ENV', 'CI'])};
+process.stdout.write(JSON.stringify({
+  ...Object.fromEntries(names.map(name => [name, process.env[name] ?? null])),
+  keyPresent: process.env.DOTENV_PRIVATE_KEY ? 'yes' : 'no',
+  secretPresent: process.env.SYNTHETIC_SECRET ? 'yes' : 'no',
+  arguments: process.argv.slice(2).join('\\n'),
+}));\n`,
+    )
+    writeFileSync(
       path.join(home, '.local/bin/mise'),
       `#!/bin/bash
 set -eu
-[ "\${MISE_NO_ENV:-}" = 1 ] || exit 80
 printf '%s\\n' "$*" >> "$AFFECT_TEST_MISE_LOG"
 case "$*" in
-  'trust mise.toml'|'install'|'exec -- bun install --frozen-lockfile') exit 0 ;;
+  'trust mise.toml'|'install'|'exec -- bun install --frozen-lockfile')
+    [ "\${MISE_NO_ENV:-}" = 1 ] || exit 80
+    exit 0 ;;
   'exec -- bun scripts/validate-development-setup.ts')
+    [ "\${MISE_NO_ENV:-}" = 1 ] || exit 80
     exec "$AFFECT_TEST_BUN" scripts/validate-development-setup.ts ;;
+  'exec -- bun inspect-toolchain.ts'*)
+    shift 3
+    exec "$AFFECT_TEST_BUN" "$@" ;;
   *) printf '%s\\n' 'Unexpected setup tool invocation.' >&2; exit 81 ;;
 esac
 `,
@@ -323,4 +383,190 @@ esac
     expect(result.stderr).toContain('must be private')
     expectSecretSafe(result)
   })
+
+  it('restores explicit native paths in a fresh wrapper without retaining setup credentials or selectors', () => {
+    const explicit: Record<string, string> = {}
+
+    for (const name of nativeDirectoryVariables) {
+      const directory = path.join(fixture, 'native paths', String.toLowerCase(name))
+      mkdirSync(directory, { recursive: true })
+      explicit[name] = directory
+    }
+
+    const executable = path.join(fixture, 'native paths', 'bin', 'mise')
+    mkdirSync(path.dirname(executable), { recursive: true })
+    cpSync(path.join(home, '.local/bin/mise'), executable)
+    explicit['MISE_INSTALL_PATH'] = executable
+
+    const result = setup({
+      ...explicit,
+      DOTENV_PRIVATE_KEY: key,
+      VERCEL_ENV: 'production',
+      CI: 'true',
+      HTTPS_PROXY: 'https://synthetic-proxy-credential.invalid',
+    })
+
+    expect(result.status).toBe(0)
+
+    const saved = readFileSync(toolchainPaths(), 'utf-8')
+    expect({
+      leaked: Array.filter(
+        [key, syntheticSecret, 'VERCEL_ENV', 'CI=', 'HTTPS_PROXY', 'synthetic-proxy-credential'],
+        (value) => String.includes(value)(saved),
+      ),
+      fileMode: statSync(toolchainPaths()).mode % 0o1000,
+      directoryMode: statSync(path.dirname(toolchainPaths())).mode % 0o1000,
+    }).toStrictEqual({ leaked: [], fileMode: 0o600, directoryMode: 0o700 })
+
+    const fresh = inspectToolchain()
+    expect(fresh.status).toBe(0)
+    const observed = decodeToolchain(fresh.stdout)
+    expect(observed).toMatchObject({
+      ...explicit,
+      HOME: home,
+      VERCEL_ENV: null,
+      CI: null,
+      keyPresent: 'no',
+      secretPresent: 'no',
+    })
+    expectSecretSafe(result)
+    expectSecretSafe(fresh)
+
+    const repeat = setup()
+    expect({ status: repeat.status, saved: readFileSync(toolchainPaths(), 'utf-8') }).toStrictEqual(
+      {
+        status: 0,
+        saved,
+      },
+    )
+    expectSecretSafe(repeat)
+  })
+
+  it('passes current profile selectors through the wrapper without loading a saved development key itself', () => {
+    expect(setup({ DOTENV_PRIVATE_KEY: key }).status).toBe(0)
+
+    const result = inspectToolchain({ VERCEL_ENV: 'production', CI: 'true' }, [
+      'one argument',
+      '--native-flag',
+      'literal$()',
+    ])
+
+    expect(result.status).toBe(0)
+    expect(decodeToolchain(result.stdout)).toMatchObject({
+      HOME: home,
+      VERCEL_ENV: 'production',
+      CI: 'true',
+      keyPresent: 'no',
+      secretPresent: 'no',
+      arguments: 'one argument\n--native-flag\nliteral$()',
+    })
+    expectSecretSafe(result)
+  })
+
+  it.each(['', '0'])('preserves an explicit disabled Bun transpiler cache value %j', (value) => {
+    expect(
+      setup({ DOTENV_PRIVATE_KEY: key, BUN_RUNTIME_TRANSPILER_CACHE_PATH: value }).status,
+    ).toBe(0)
+    const fresh = inspectToolchain()
+    expect(fresh.status).toBe(0)
+    expect(decodeToolchain(fresh.stdout)['BUN_RUNTIME_TRANSPILER_CACHE_PATH']).toBe(value)
+    expect(setup().status).toBe(0)
+    expect(decodeToolchain(inspectToolchain().stdout)['BUN_RUNTIME_TRANSPILER_CACHE_PATH']).toBe(
+      value,
+    )
+  })
+
+  it.each(['MISE_CACHE_DIR', 'XDG_STATE_HOME', 'BUN_INSTALL', 'BUN_TMPDIR', 'PORTLESS_STATE_DIR'])(
+    'rejects a relative explicit %s before invoking tools',
+    (name) => {
+      const result = setup({ DOTENV_PRIVATE_KEY: key, [name]: 'relative-native-directory' })
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain(name)
+      expect(existsSync(path.join(fixture, 'mise-calls'))).toBeFalsy()
+      expect(existsSync(toolchainPaths())).toBeFalsy()
+      expectSecretSafe(result)
+    },
+  )
+
+  it('rejects an explicit directory blocked by a regular file before invoking tools', () => {
+    // This fails for privileged runners too; chmod alone would not prove denial.
+    const blocked = path.join(fixture, 'blocked-cache')
+    writeFileSync(blocked, 'regular-file')
+    const result = setup({ DOTENV_PRIVATE_KEY: key, MISE_CACHE_DIR: blocked })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('MISE_CACHE_DIR')
+    expect(existsSync(path.join(fixture, 'mise-calls'))).toBeFalsy()
+    expect(existsSync(toolchainPaths())).toBeFalsy()
+    expect(readFileSync(blocked, 'utf-8')).toBe('regular-file')
+    expectSecretSafe(result)
+  })
+
+  it('rejects conflicting fresh-wrapper paths until setup explicitly selects them', () => {
+    expect(setup({ DOTENV_PRIVATE_KEY: key }).status).toBe(0)
+    const saved = readFileSync(toolchainPaths(), 'utf-8')
+    const different = path.join(fixture, 'different-cache')
+    mkdirSync(different)
+    const result = inspectToolchain({ MISE_CACHE_DIR: different })
+    expect(result.status).toBe(1)
+    expect(readFileSync(toolchainPaths(), 'utf-8')).toBe(saved)
+    expectSecretSafe(result)
+    expect(setup({ MISE_CACHE_DIR: different }).status).toBe(0)
+    expect(decodeToolchain(inspectToolchain().stdout)['MISE_CACHE_DIR']).toBe(different)
+  })
+
+  it.each(['malformed', 'duplicate', 'unknown', 'compound key'])(
+    'refuses a %s saved path record without executing its contents',
+    (problem) => {
+      expect(setup({ DOTENV_PRIVATE_KEY: key }).status).toBe(0)
+      const saved = readFileSync(toolchainPaths(), 'utf-8')
+      const marker = path.join(fixture, 'path-config-executed')
+
+      const records: Record<string, string> = {
+        malformed: `touch ${marker}`,
+        duplicate: `MISE_CACHE_DIR=${path.join(fixture, 'second-cache')}`,
+        unknown: `UNKNOWN_PATH=$(touch ${marker})`,
+        'compound key': `MISE_DATA_DIR MISE_CACHE_DIR=${path.join(fixture, 'compound')}`,
+      }
+
+      const record = records[problem]
+      writeFileSync(toolchainPaths(), `${saved}${record}\n`, { mode: 0o600 })
+
+      const result = inspectToolchain()
+      expect(result.status).toBe(1)
+      expect(existsSync(marker)).toBeFalsy()
+      expectSecretSafe(result)
+
+      const rerun = setup()
+      expect(rerun.status).toBe(1)
+      expect(existsSync(marker)).toBeFalsy()
+      expectSecretSafe(rerun)
+    },
+  )
+
+  it.each(['file', 'directory'])('refuses a symlinked saved path %s', (target) => {
+    expect(setup({ DOTENV_PRIVATE_KEY: key }).status).toBe(0)
+    const selected = target === 'file' ? toolchainPaths() : path.dirname(toolchainPaths())
+    const outside = path.join(fixture, `original-path-${target}`)
+    renameSync(selected, outside)
+    symlinkSync(outside, selected, target === 'file' ? 'file' : 'dir')
+    const result = inspectToolchain()
+    expect(result.status).toBe(1)
+    expectSecretSafe(result)
+    expect(setup().status).toBe(1)
+  })
+
+  it.each(['file', 'directory'])(
+    'refuses saved path %s permissions that expose state',
+    (target) => {
+      expect(setup({ DOTENV_PRIVATE_KEY: key }).status).toBe(0)
+      chmodSync(
+        target === 'file' ? toolchainPaths() : path.dirname(toolchainPaths()),
+        target === 'file' ? 0o644 : 0o755,
+      )
+      const result = inspectToolchain()
+      expect(result.status).toBe(1)
+      expectSecretSafe(result)
+      expect(setup().status).toBe(1)
+    },
+  )
 })
