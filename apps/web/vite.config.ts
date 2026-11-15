@@ -1,12 +1,11 @@
 import { devtools } from '@tanstack/devtools-vite'
-import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
 import { nitro } from 'nitro/vite'
 import { defineConfig } from 'vite'
-import { assertEncryptedProfile } from './vite/encrypted-profile'
+import { createEncryptedProfilePlugin } from './vite/encrypted-profile-plugin'
 import { createLoopbackHostGuard } from './vite/loopback-host-guard'
 import { resolveServerOptions } from './vite/server-options'
 
@@ -24,14 +23,6 @@ export default defineConfig(({ command, isPreview }) => {
   }
 
   const profileDirectory = fileURLToPath(new URL(`../../env/${profile}/`, import.meta.url))
-
-  if (command === 'build' && !existsSync(`${profileDirectory}.env`)) {
-    throw new Error(`Missing encrypted Affect profile: env/${profile}/.env`)
-  }
-
-  if (command === 'build') {
-    assertEncryptedProfile(readFileSync(`${profileDirectory}.env`, 'utf-8'))
-  }
 
   const { host, port, portlessHost, portlessAuthority } = resolveServerOptions({
     command,
@@ -67,6 +58,7 @@ export default defineConfig(({ command, isPreview }) => {
       createLoopbackHostGuard(portlessAuthority),
       tailwindcss(),
       tanstackStart(),
+      createEncryptedProfilePlugin({ profileDirectory, profile }),
       nitro({
         serverDir: 'server',
         // Keep dotenvx's CommonJS dependencies native in Node server artifacts.

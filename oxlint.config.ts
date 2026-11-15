@@ -54,6 +54,16 @@ export default defineConfig({
       },
     },
     {
+      // Native Vite config hooks and their filesystem fixtures validate encrypted build inputs.
+      files: [
+        'apps/web/vite/encrypted-profile-plugin.ts',
+        'apps/web/src/encrypted-profile-plugin.test.ts',
+      ],
+      rules: {
+        'effecttsgo/node-builtin-import': 'off',
+      },
+    },
+    {
       files: ['convex/**/*.ts'],
       jsPlugins: ['@convex-dev/eslint-plugin'],
       rules: {
