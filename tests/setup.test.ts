@@ -136,8 +136,8 @@ const environment = (extra: Record<string, string> = {}) =>
     ...extra,
   })
 
-const setup = (extra: Record<string, string> = {}) =>
-  spawnSync('/bin/bash', ['scripts/setup.sh'], {
+const setup = (extra: Record<string, string> = {}, arguments_: string[] = []) =>
+  spawnSync('/bin/bash', ['scripts/setup.sh', ...arguments_], {
     cwd: fixture,
     env: environment(extra),
     encoding: 'utf-8',
@@ -177,6 +177,14 @@ const expectSecretSafe = (result: ReturnType<typeof setup>, privateKey = key) =>
   expect(output).not.toContain(profileValues.CONVEX_DEPLOY_KEY)
 }
 
+const prepareHostedFixture = () => {
+  cpSync(profilePath(), path.join(fixture, 'hosted.env'))
+  writeFileSync(path.join(fixture, 'hosted.keys'), `DOTENV_PRIVATE_KEY=${key}\n`, {
+    mode: 0o600,
+  })
+  rmSync(path.join(fixture, 'env'), { recursive: true })
+}
+
 describe('local development setup', () => {
   beforeEach(() => {
     fixture = mkdtempSync(path.join(tmpdir(), 'affect-setup-test-'))
@@ -200,10 +208,39 @@ process.stdout.write(JSON.stringify({
 }));\n`,
     )
     writeFileSync(
+      path.join(fixture, 'hosted-init.ts'),
+      `import { chmodSync, copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
+const args = process.argv.slice(2);
+writeFileSync('hosted-control.calls', (process.env.AFFECT_REQUIRE_DEVELOPMENT ?? 'absent') + String.fromCharCode(10), { flag: 'a' });
+if (args.length === 1 && args[0] === '--help') {
+  process.stdout.write(process.env.AFFECT_TEST_OLD_CLI === '1' ? 'Usage: affect env <subcommand>' : 'Usage: affect env init [flags]');
+} else if (process.env.AFFECT_REQUIRE_DEVELOPMENT !== '1') {
+  process.stderr.write('Synthetic hosted setup requires its development control.');
+  process.exitCode = 1;
+} else if (args.includes('--profiles') && !args[args.indexOf('--profiles') + 1]?.split(',').includes('development')) {
+  process.stderr.write('Hosted setup requires the development profile.');
+  process.exitCode = 1;
+} else if (process.env.AFFECT_TEST_INIT_FAIL === '1') {
+  process.stderr.write('Synthetic hosted init failure.');
+  process.exitCode = 1;
+} else {
+  writeFileSync('hosted-init.args', JSON.stringify(args));
+  mkdirSync('env/development', { recursive: true, mode: 0o700 });
+  copyFileSync('hosted.env', 'env/development/.env');
+  copyFileSync('hosted.keys', 'env/development/.env.keys');
+  chmodSync('env/development/.env.keys', 0o600);
+}
+`,
+    )
+    writeFileSync(
       path.join(home, '.local/bin/mise'),
       `#!/bin/bash
 set -eu
 printf '%s\\n' "$*" >> "$AFFECT_TEST_MISE_LOG"
+case "$*" in
+  'exec -- bunx --no-install affect env init'*) ;;
+  *) [ -z "\${AFFECT_REQUIRE_DEVELOPMENT:-}" ] || exit 82 ;;
+esac
 case "$*" in
   'trust mise.toml'|'install'|'exec -- bun install --frozen-lockfile')
     [ "\${MISE_NO_ENV:-}" = 1 ] || exit 80
@@ -211,6 +248,10 @@ case "$*" in
   'exec -- bun scripts/validate-development-setup.ts')
     [ "\${MISE_NO_ENV:-}" = 1 ] || exit 80
     exec "$AFFECT_TEST_BUN" scripts/validate-development-setup.ts ;;
+  'exec -- bunx --no-install affect env init'*)
+    [ "\${MISE_NO_ENV:-}" = 1 ] || exit 80
+    shift 7
+    exec "$AFFECT_TEST_BUN" hosted-init.ts "$@" ;;
   'exec -- bun inspect-toolchain.ts'*)
     shift 3
     exec "$AFFECT_TEST_BUN" "$@" ;;
@@ -224,6 +265,148 @@ esac
 
   afterEach(() => {
     rmSync(fixture, { recursive: true, force: true })
+  })
+
+  it('initializes hosted profiles after installing tools without an existing profile or process key', () => {
+    prepareHostedFixture()
+
+    const arguments_ = [
+      '--team',
+      '11',
+      '--project',
+      '22',
+      '--profiles',
+      'development,preview',
+      '--site-url',
+      'https://synthetic-app.invalid',
+      '--values',
+      'private settings.json',
+      '--non-interactive',
+    ]
+
+    const result = setup({}, ['--hosted', ...arguments_])
+    expect(result.status).toBe(0)
+    expect(
+      Schema.decodeSync(Schema.fromJsonString(Schema.Array(Schema.String)))(
+        readFileSync(path.join(fixture, 'hosted-init.args'), 'utf-8'),
+      ),
+    ).toStrictEqual(arguments_)
+    expect(readFileSync(path.join(fixture, 'mise-calls'), 'utf-8')).toBe(
+      `trust mise.toml\ninstall\nexec -- bun install --frozen-lockfile\nexec -- bunx --no-install affect env init --help\nexec -- bunx --no-install affect env init ${Array.join(arguments_, ' ')}\nexec -- bun scripts/validate-development-setup.ts\n`,
+    )
+    expect({
+      key: readFileSync(keyPath(), 'utf-8'),
+      mode: statSync(keyPath()).mode % 0o1000,
+      paths: existsSync(toolchainPaths()),
+      controls: readFileSync(path.join(fixture, 'hosted-control.calls'), 'utf-8'),
+      persistedControl: String.includes('AFFECT_REQUIRE_DEVELOPMENT')(
+        readFileSync(profilePath(), 'utf-8') + readFileSync(toolchainPaths(), 'utf-8'),
+      ),
+    }).toStrictEqual({
+      key: `DOTENV_PRIVATE_KEY=${key}\n`,
+      mode: 0o600,
+      paths: true,
+      controls: 'absent\n1\n',
+      persistedControl: false,
+    })
+    expectSecretSafe(result)
+  })
+
+  it('preserves literal hosted arguments without shell evaluation', () => {
+    prepareHostedFixture()
+    const literal = 'literal$(touch should-not-exist)'
+    const result = setup({}, ['--hosted', '--create-project', literal])
+    expect(result.status).toBe(0)
+    expect(readFileSync(path.join(fixture, 'hosted-init.args'), 'utf-8')).toBe(
+      Schema.encodeSync(Schema.fromJsonString(Schema.Array(Schema.String)))([
+        '--create-project',
+        literal,
+      ]),
+    )
+    expect(existsSync(path.join(fixture, 'should-not-exist'))).toBeFalsy()
+    expectSecretSafe(result)
+  })
+
+  it('validates the restored development key instead of an unrelated ambient key', () => {
+    prepareHostedFixture()
+    const unrelatedKey = primitives.keypair().privateKey
+    const result = setup({ DOTENV_PRIVATE_KEY: unrelatedKey }, ['--hosted', '--team', '11'])
+    expect(result.status).toBe(0)
+    expect(readFileSync(keyPath(), 'utf-8')).toBe(`DOTENV_PRIVATE_KEY=${key}\n`)
+    expectSecretSafe(result)
+    expectSecretSafe(result, unrelatedKey)
+  })
+
+  it('rejects parent help from an unsupported CLI before hosted initialization', () => {
+    prepareHostedFixture()
+    const result = setup({ AFFECT_TEST_OLD_CLI: '1' }, ['--hosted', '--team', '11'])
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('released compatible Affect CLI')
+    expect({
+      initialized: existsSync(path.join(fixture, 'hosted-init.args')),
+      profile: existsSync(profilePath()),
+      paths: existsSync(toolchainPaths()),
+    }).toStrictEqual({ initialized: false, profile: false, paths: false })
+    expectSecretSafe(result)
+  })
+
+  it('stops before local validation or saved paths when hosted initialization fails', () => {
+    prepareHostedFixture()
+    const result = setup({ AFFECT_TEST_INIT_FAIL: '1' }, ['--hosted', '--team', '11'])
+    expect(result.status).toBe(1)
+    expect(readFileSync(path.join(fixture, 'mise-calls'), 'utf-8')).not.toContain(
+      'validate-development-setup.ts',
+    )
+    expect(existsSync(toolchainPaths())).toBeFalsy()
+    expectSecretSafe(result)
+  })
+
+  it('stops hosted setup without development before profile creation or local validation', () => {
+    prepareHostedFixture()
+    const result = setup({}, ['--hosted', '--profiles', 'preview,production'])
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('requires the development profile')
+    expect(readFileSync(path.join(fixture, 'mise-calls'), 'utf-8')).not.toContain(
+      'validate-development-setup.ts',
+    )
+    expect({
+      initialized: existsSync(path.join(fixture, 'hosted-init.args')),
+      profile: existsSync(profilePath()),
+      paths: existsSync(toolchainPaths()),
+    }).toStrictEqual({ initialized: false, profile: false, paths: false })
+    expectSecretSafe(result)
+  })
+
+  it.each([['--team', '11'], ['unexpected'], ['', '--hosted']])(
+    'rejects setup arguments without explicit hosted intent: %j',
+    (...arguments_) => {
+      const result = setup({}, arguments_)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('Unexpected setup arguments')
+      expect(existsSync(path.join(fixture, 'mise-calls'))).toBeFalsy()
+      expectSecretSafe(result)
+    },
+  )
+
+  it('shows setup help without installing tools or requiring a profile', () => {
+    prepareHostedFixture()
+    const result = setup({}, ['--help'])
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('--hosted <affect env init flags...>')
+    expect(existsSync(path.join(fixture, 'mise-calls'))).toBeFalsy()
+    expectSecretSafe(result)
+  })
+
+  it('passes hosted help through without requiring local validation', () => {
+    prepareHostedFixture()
+    const result = setup({}, ['--hosted', '--help'])
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('Usage: affect env init [flags]')
+    expect(readFileSync(path.join(fixture, 'mise-calls'), 'utf-8')).not.toContain(
+      'validate-development-setup.ts',
+    )
+    expect(existsSync(profilePath())).toBeFalsy()
+    expectSecretSafe(result)
   })
 
   it.each(['profile', 'key'])(

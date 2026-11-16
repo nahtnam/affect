@@ -11,13 +11,39 @@ Affect is a product in discovery. The current public home and authenticated app 
 
 ## Setup
 
+Hosted initialization has an explicit entry point:
+
+```sh
+bash scripts/setup.sh --hosted --team 11 --project 22 \
+  --profiles development,preview,production --site-url https://app.example.com \
+  --non-interactive
+```
+
+Replace the numeric team/project IDs and public origin with the intended targets. This checkout pins the published Affect CLI 0.0.7. Setup checks exact `affect env init` capability before initialization; older incompatible checkouts stop with a fixed prerequisite error. Fixture checks alone do not establish acceptance against a real hosted account.
+
+That one command installs the toolchain and frozen dependencies before initializing or restoring profiles, so no development ciphertext or private key is required beforehand. Provide separately authorized Convex authentication: an existing native saved login/PAT, `CONVEX_ACCESS_TOKEN`, or an `AFFECT_CONVEX_TOKEN` team token. Noninteractive first use must explicitly select the numeric team, existing project (`--project`) or new project name (`--create-project`), and comma-separated profiles. This setup entry point requires `development` for its final local validation and rejects other selections before provider operations; direct `affect env init` can initialize other profile combinations. `--site-url` is the exact hosted app origin; optional `--dev-deployment` and `--prod-deployment` bind existing deployment names. Optional `--values` supplies a private JSON settings file for external-service inputs. Broad account/team credentials authorize setup only and must never enter encrypted app profiles, host runtime configuration or logs.
+
+The CLI records verified IDs/profile choices without tokens in `affect.json`, stores each matching private key in an ignored owner-only profile keyfile, and uses native Convex custody to make subsequent authorized clones recoverable. Development and production custody belongs to their respective deployments. Preview-family custody uses the project's default environment variables restricted to preview deployments and contains only preview-scoped credentials. Existing keys and production settings are preserved: conflicting or unverifiable values stop initialization instead of triggering rotation or overwrites.
+
+Vercel delivery is optional and requires separate Vercel authentication plus explicit `--vercel-project`, `--vercel-account`, and, for a team account, `--vercel-team`. Convex authorization never authorizes a host account. Matching `DOTENV_PRIVATE_KEY` values are delivered to separate development/preview/production targets. `--configure-host-build` requires host Root Directory `apps/web` and inclusion of source files outside that directory, then adopts `cd ../.. && bunx --no-install affect deploy` only when the existing build command is empty or already matches. Incompatible host build settings fail before provisioning; setup does not change the host root or source inclusion. It does not link Git, select domains or publish the frontend. Existing unreadable host secrets or conflicting values require explicit resolution and are not replaced.
+
+New development profiles default to `http://localhost:3000`; start them with:
+
+```sh
+VERCEL_ENV=development bash scripts/mise.sh exec -- bun run dev:localhost
+```
+
+Use `--dev-origin` only for a known exact development origin, including an actual advertised Portless origin. Initialization does not invent or broadly trust a Portless hostname. Restored profiles retain their existing origins and can continue using their configured Portless workflow.
+
+For an already provisioned development profile, the default command remains local:
+
 From the repository root, locally or in a cloud setup field:
 
 ```sh
 bash scripts/setup.sh
 ```
 
-The command installs Mise, the pinned Bun 1.4.4 and Node 24.22.2, and frozen workspace dependencies, then verifies the **development** profile. It is noninteractive and repeatable. It requires Bash, curl, standard filesystem/archive utilities, public package/tool download access, provisioned ciphertext at `env/development/.env`, and its matching `DOTENV_PRIVATE_KEY` as an actual environment variable. The template contains no encrypted profile; a key alone cannot create one or configure a backend.
+The default command installs Mise, the pinned Bun 1.4.4 and Node 24.22.2, and frozen workspace dependencies, then verifies the **development** profile. It is noninteractive and repeatable. It requires Bash, curl, standard filesystem/archive utilities, public package/tool download access, provisioned ciphertext at `env/development/.env`, and its matching `DOTENV_PRIVATE_KEY` as an actual environment variable or the existing saved local keyfile. The template contains no encrypted profile; a key alone cannot create one or configure a backend. This default path never invokes hosted initialization.
 
 The development key is saved locally in ignored `env/development/.env.keys` with owner-only permissions, after successful validation. This lets later commands decrypt the profile even when a cloud provider exposes the key only during setup. Treat this local file as a credential: keep the workspace private, exclude it from artifacts, and delete it when retiring the environment. No decrypted profile or other setup secrets are saved. An HTTP proxy secret is a value injected into outbound HTTP requests; it is not process key material and cannot decrypt a profile. Package-download proxy credentials remain provider-owned and must be available again if a later install needs them.
 
@@ -32,7 +58,7 @@ Setup preserves HOME and reuses an existing executable Mise when available. It r
 
 Explicit `VERCEL_ENV=development` keeps cloud runners with `CI=true` on the intended development profile. Setup always validates development but does not change native profile selection: `VERCEL_ENV`, then exact `CI=true` / `GITHUB_ACTIONS=true`, otherwise `development`. The stored development key is used only for development and only when no process `DOTENV_PRIVATE_KEY` is supplied. Preview, production and CI require their own matching process key; they never fall back to the saved development key.
 
-`bun run dev` starts only the Portless web app. Use the advertised origin for browser requests and backend auth trust; Portless supplies `PORTLESS_URL`, so `VITE_SITE_URL` may be blank for this mode. For direct loopback, use `bun run dev:localhost` through the same Mise command and set `VITE_SITE_URL` to `http://localhost:3000`. Hosted authentication also requires the exact public origin, with matching `SITE_URL` and `TRUSTED_ORIGINS` in the selected backend. Setup does not modify those settings, start a Convex watcher, sync, provision or deploy.
+`bun run dev` starts only the Portless web app. Use the advertised origin for browser requests and backend auth trust; Portless supplies `PORTLESS_URL`, so `VITE_SITE_URL` may be blank for this mode. For direct loopback, use `bun run dev:localhost` through the same Mise command and set `VITE_SITE_URL` to `http://localhost:3000`. Hosted authentication also requires the exact public origin, with matching `SITE_URL` and `TRUSTED_ORIGINS` in the selected backend. Default setup does not modify those settings, start a Convex watcher, sync, provision or deploy. Explicit `--hosted` authorizes the initialization workflow only; deployment remains a separate transition.
 
 For keyless checks, disable profile directives:
 
@@ -60,7 +86,7 @@ The build rejects missing profiles, plaintext values and private-key assignments
 
 At cold start, the server reads the bundled ciphertext and decrypts it with native dotenvx before dynamically importing the application handler. The runtime needs only the matching `DOTENV_PRIVATE_KEY` as app configuration; the profile is already inside the server artifact. No runtime profile selector, external env file, CLI process wrapper, plaintext secret transport or Vercel-specific source branch is required. Missing or incorrect keys fail initialization with a fixed error. Development keeps its existing CLI/Mise profile activation.
 
-`convex/env.config.ts` re-exports `publicEnv` from the neutral `convex/envDefinition.ts`. This array lists intentionally browser-safe additions (`VITE_SITE_URL`, `VITE_POSTHOG_HOST`, `VITE_POSTHOG_KEY`); the CLI owns the two canonical Convex URLs. Affect CLI 0.0.6 forwards only these declared additions, never all `VITE_` values or backend declarations. New browser values must be deliberately listed and consumed by the app. Keep server settings unprefixed.
+`convex/env.config.ts` re-exports `publicEnv` from the neutral `convex/envDefinition.ts`. This array lists intentionally browser-safe additions (`VITE_SITE_URL`, `VITE_POSTHOG_HOST`, `VITE_POSTHOG_KEY`); the CLI owns the two canonical Convex URLs. Affect CLI 0.0.7 forwards only these declared additions, never all `VITE_` values or backend declarations. New browser values must be deliberately listed and consumed by the app. Keep server settings unprefixed.
 
 This contract configures the web runtime. Convex backend settings, provider credentials and remote deployment targets still require their own explicit setup and authorization.
 
@@ -86,7 +112,7 @@ A Convex watcher or command may affect remote state. Before running one, resolve
 - `MISE_NO_ENV=1 bash scripts/mise.sh exec -- bunx --no-install affect env sync-dev` reads the development profile directly, verifies its development-scoped key against deployment identity and canonical `VITE_CONVEX_URL` / `VITE_CONVEX_SITE_URL` values, then writes only present settings declared by `convex/env.config.ts`. Provide the matching development `DOTENV_PRIVATE_KEY`. This is a remote environment mutation, not a code deployment: resolve and authorize the exact team, project and development deployment separately. Never run it automatically at app startup.
 - `bash scripts/mise.sh exec -- bunx --no-install affect deploy` requires `VERCEL_ENV=preview` or `production`, the matching encrypted profile and key, and `VERCEL_GIT_COMMIT_REF` for preview. During the native Convex deploy callback, the CLI writes declared settings before the TanStack build and final backend push. Settings can change even if the build fails. The command may push Convex functions, schema and indexes; it does not publish frontend assets. Resolve and authorize the exact target separately. Do not use it as local setup or add `NEXT_PUBLIC_*` aliases.
 
-There is no repository deploy script or selected frontend host. Hosting and deployment remain separate from local setup.
+There is no repository deploy script or selected frontend host. Optional host configuration during explicit hosted initialization is separate from frontend publication and backend deployment.
 
 ## Backend and frontend deployment
 
@@ -94,7 +120,9 @@ No root deploy script or reusable provider target is configured in the checked-i
 
 The native Convex pattern `bunx --no-install convex deploy --cmd 'bun run build'` runs the web build as part of a backend deployment. The pinned Convex CLI detects Vite/TanStack from the root manifest and supplies both `VITE_CONVEX_URL` and `VITE_CONVEX_SITE_URL` to the build command; this behavior was confirmed by installed-source inspection, not by running a deploy. The command can push Convex functions, schema and indexes to the selected deployment; it does not publish frontend assets to a hosting provider. Target resolution can select the project's default production deployment when `CONVEX_DEPLOYMENT` is set. Before any use, resolve the exact account/team, project, deployment and environment, then confirm the task authorizes that write. This documented native pattern is not a configured script or approved deployment plan.
 
-Affect's app consumes `VITE_CONVEX_SITE_URL` for Better Auth. Convex's installed Vite/TanStack detection supplies both public URLs to the child build. The frontend host and publish step remain undecided. During the native Convex deploy callback, Affect CLI 0.0.6 writes the selected preview/production profile's declared settings before the TanStack build and final backend push. A build failure does not roll back that environment write; backend deployment and environment configuration require exact-target authorization. The CLI does not publish frontend assets.
+Affect's app consumes `VITE_CONVEX_SITE_URL` for Better Auth. Convex's installed Vite/TanStack detection supplies both public URLs to the child build. The frontend host and publish step remain undecided. During the native Convex deploy callback, Affect CLI 0.0.7 writes the selected preview/production profile's declared settings before the TanStack build and final backend push. A build failure does not roll back that environment write; backend deployment and environment configuration require exact-target authorization. The CLI does not publish frontend assets.
+
+For previews, the CLI resolves the frontend origin from `VERCEL_URL` or an explicit `AFFECT_PREVIEW_ORIGIN` and uses the native branch deployment’s canonical Convex URLs. It applies the same origins to backend authentication, the browser build and a temporary encrypted runtime profile using the existing preview key. Deployment/provider controls stay out of that runtime payload; the committed profile is restored after the build. Native branch deployments are created or reused without resetting data.
 
 ## Development references
 

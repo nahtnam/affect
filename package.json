@@ -43,7 +43,7 @@
     "@tanstack/intent": "0.5.5",
     "@types/bun": "1.4.4",
     "@types/node": "^24.0.0",
-    "affect-cli": "0.0.6",
+    "affect-cli": "0.0.7",
     "auth": "1.7.18",
     "convex-test": "0.0.67",
     "happy-dom": "21.0.4",
