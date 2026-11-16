@@ -1,1 +1,16 @@
-{"developmentDeployment":"wry-guineapig-217","developmentOrigin":"http://localhost:3000","profiles":["development","preview"],"projectId":3375609,"projectSlug":"affect-e2e-20261105","siteUrl":"https://affect-onboarding-20261115.vercel.app","teamId":251134,"teamSlug":"nahtnam","vercel":{"accountId":"team_V3SaZQAx3T8OXBbi8mpTXfU5","projectId":"prj_7OAC2KIEYMpOA95fjdIWemIh3AHM","teamId":"team_V3SaZQAx3T8OXBbi8mpTXfU5"},"version":1}
+{
+  "developmentDeployment": "wry-guineapig-217",
+  "developmentOrigin": "http://localhost:3000",
+  "profiles": ["development", "preview"],
+  "projectId": 3375609,
+  "projectSlug": "affect-e2e-20261105",
+  "siteUrl": "https://affect-onboarding-20261115.vercel.app",
+  "teamId": 251134,
+  "teamSlug": "nahtnam",
+  "vercel": {
+    "accountId": "team_V3SaZQAx3T8OXBbi8mpTXfU5",
+    "projectId": "prj_7OAC2KIEYMpOA95fjdIWemIh3AHM",
+    "teamId": "team_V3SaZQAx3T8OXBbi8mpTXfU5"
+  },
+  "version": 1
+}
