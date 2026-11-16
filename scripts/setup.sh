@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bootstrap tools and validate an already-provisioned development profile locally.
+# Bootstrap tools, optionally initialize hosted profiles, then validate development locally.
 set +x
 set -euo pipefail
 
@@ -11,10 +11,29 @@ fail() {
   exit 1
 }
 
+usage() {
+  printf '%s\n' \
+    'Usage: bash scripts/setup.sh [--hosted <affect env init flags...>]' \
+    'Default: install tools and validate an existing local development profile.' \
+    '--hosted: explicitly initialize or restore verified hosted profiles before local validation.' \
+    'Hosted mode requires a released Affect CLI with env init support and separate provider authorization.'
+}
+
+setup_hosted=0
+case "${1:-}" in
+  --hosted) setup_hosted=1; shift ;;
+  --help|-h) usage; exit 0 ;;
+  '') ;;
+  *) fail 'Unexpected setup arguments. Use --help or --hosted followed by affect env init flags.' ;;
+esac
+
 command -v curl >/dev/null 2>&1 || fail 'Setup requires curl.'
-[ -f env/development/.env ] || fail 'Provide the encrypted development profile at env/development/.env before setup.'
-if [ -z "${DOTENV_PRIVATE_KEY:-}" ] && [ ! -f env/development/.env.keys ]; then
-  fail 'Provide the development DOTENV_PRIVATE_KEY before setup.'
+if [ "$setup_hosted" = 0 ]; then
+  [ "$#" = 0 ] || fail 'Unexpected setup arguments. Use --help or --hosted followed by affect env init flags.'
+  [ -f env/development/.env ] || fail 'Provide the encrypted development profile at env/development/.env before setup.'
+  if [ -z "${DOTENV_PRIVATE_KEY:-}" ] && [ ! -f env/development/.env.keys ]; then
+    fail 'Provide the development DOTENV_PRIVATE_KEY before setup.'
+  fi
 fi
 
 source "$setup_root/scripts/toolchain.sh"
@@ -33,8 +52,34 @@ fi
 MISE_NO_ENV=1 "$setup_mise" trust mise.toml
 MISE_NO_ENV=1 "$setup_mise" install
 MISE_NO_ENV=1 "$setup_mise" exec -- bun install --frozen-lockfile
+if [ "$setup_hosted" = 1 ]; then
+  # Older CLIs can exit successfully while showing parent-command help for an
+  # unknown subcommand. Confirm the exact command exists before invoking it.
+  setup_hosted_help=$(MISE_NO_ENV=1 "$setup_mise" exec -- bunx --no-install affect env init --help 2>/dev/null) || fail 'Hosted setup requires a released compatible Affect CLI with affect env init support (0.0.7 or later).'
+  case "$setup_hosted_help" in
+    *'affect env init'*) ;;
+    *) fail 'Hosted setup requires a released compatible Affect CLI with affect env init support (0.0.7 or later).' ;;
+  esac
+  unset setup_hosted_help
+  AFFECT_REQUIRE_DEVELOPMENT=1 MISE_NO_ENV=1 "$setup_mise" exec -- bunx --no-install affect env init "$@"
+  for setup_argument in "$@"; do
+    case "$setup_argument" in
+      --help|-h) exit 0 ;;
+    esac
+  done
+fi
 # The validator emits only fixed, secret-safe errors. Never run `affect setup`:
 # that command can provision or change a remote Convex deployment.
-MISE_NO_ENV=1 "$setup_mise" exec -- bun scripts/validate-development-setup.ts
+if [ "$setup_hosted" = 1 ]; then
+  # Hosted init owns the selected profile's keyfile. An unrelated ambient key
+  # must not override the restored development key during local validation.
+  DOTENV_PRIVATE_KEY= MISE_NO_ENV=1 "$setup_mise" exec -- bun scripts/validate-development-setup.ts
+else
+  MISE_NO_ENV=1 "$setup_mise" exec -- bun scripts/validate-development-setup.ts
+fi
 toolchain_save
-printf '%s\n' 'Development setup complete. Start with: VERCEL_ENV=development bash scripts/mise.sh exec -- bun run dev'
+if [ "$setup_hosted" = 1 ]; then
+  printf '%s\n' 'Development setup complete. Use the configured development origin.'
+else
+  printf '%s\n' 'Development setup complete. Start with: VERCEL_ENV=development bash scripts/mise.sh exec -- bun run dev'
+fi
