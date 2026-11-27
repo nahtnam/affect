@@ -1,7 +1,6 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { createConvexRouteQuery } from 'convex-route-query'
 
-import { privateHeaders } from '#/auth/private-headers'
 import { api } from '@convex/_generated/api'
 
 const adminViewerQuery = createConvexRouteQuery('adminViewer', api.admin.viewer)
@@ -22,12 +21,7 @@ const Admin = () => {
   )
 }
 
-export const Route = createFileRoute('/_authenticated/admin')({
-  beforeLoad: ({ context }) => {
-    if (!context.isAdmin) {
-      redirect({ headers: privateHeaders, throw: true, to: '/app' })
-    }
-  },
+export const Route = createFileRoute('/_with-admin/admin/')({
   component: Admin,
   loader: async (loaderContext) => {
     try {
