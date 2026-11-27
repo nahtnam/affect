@@ -39,25 +39,6 @@ export default defineConfig({
   },
   overrides: [
     {
-      files: ['scripts/local.ts', 'scripts/local-state.ts'],
-      rules: {
-        'effecttsgo/prefer-effect-array': 'off',
-        'effecttsgo/prefer-effect-string': 'off',
-      },
-    },
-    {
-      // Bun supervisor manages native children and polls their readiness in order.
-      files: ['scripts/local.ts'],
-      rules: {
-        'effecttsgo/async-function': 'off',
-        'effecttsgo/global-fetch': 'off',
-        'effecttsgo/node-builtin-import': 'off',
-        'effecttsgo/process-env': 'off',
-        'node/no-process-env': 'off',
-        'no-await-in-loop': 'off',
-      },
-    },
-    {
       // Local setup and its fixtures are native process/filesystem boundaries; domain values use Effect Schema.
       files: ['scripts/validate-development-setup.ts', 'tests/setup.test.ts'],
       rules: {

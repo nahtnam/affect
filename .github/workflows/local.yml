@@ -21,12 +21,16 @@ jobs:
           trap 'local_app stop' EXIT
           output=$(local_app start --seed)
           line=$(tail -n 1 <<< "$output")
-          [[ "$line" == URL=http://127.0.0.1:* ]]
+          [[ "$line" == URL=http://*.localhost:* ]]
           curl --fail --silent --show-error "${line#URL=}" -o "$RUNNER_TEMP/page"
           grep -q '>Affect</h1>' "$RUNNER_TEMP/page"
           [[ "$(local_app count)" == 1 ]]
           local_app seed
           [[ "$(local_app count)" == 1 ]]
+          otp=$(local_app code)
+          curl --fail --silent --show-error "${line#URL=}/api/auth/sign-in/email-otp" \
+            -H "Origin: ${line#URL=}" -H 'Content-Type: application/json' \
+            --data-binary @- -o /dev/null <<< "{\"email\":\"demo@example.test\",\"otp\":\"$otp\"}"
           local_app stop
           if local_app seed; then exit 1; fi
           local_app start

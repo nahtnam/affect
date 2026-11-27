@@ -15,7 +15,7 @@ usage() {
   printf '%s\n' \
     'Usage: bash scripts/setup.sh [--local | --hosted <affect env init flags...>]' \
     'Default: install tools and validate an existing local development profile.' \
-    '--local: install the toolchain, dependencies and verified native backend without profiles.' \
+    '--local: install the toolchain, dependencies without profiles.' \
     '--hosted: explicitly initialize or restore verified hosted profiles before local validation.' \
     'Hosted mode requires a released Affect CLI with env init support and separate provider authorization.'
 }
@@ -56,7 +56,6 @@ MISE_NO_ENV=1 "$setup_mise" trust mise.toml
 MISE_NO_ENV=1 "$setup_mise" install
 if [ "$setup_local" = 1 ]; then
   MISE_NO_ENV=1 "$setup_mise" exec -- bun --no-env-file install --frozen-lockfile
-  bash scripts/install-local-backend.sh
   toolchain_save
   exit 0
 fi

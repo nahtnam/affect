@@ -141,7 +141,7 @@ The combined integration guide is a starting point. This project additionally re
 
 ## Run locally without secrets
 
-Run `bash scripts/setup.sh --local` once per checkout. With the pinned Bun and Node on
+Run `bash scripts/setup.sh --local` once per checkout. With Python 3.8+ available and the pinned Bun and Node on
 PATH, use the commands below. In a fresh shell prefix each Bun command with
 `MISE_NO_ENV=1 bash scripts/mise.sh exec --` to select those tools.
 
@@ -168,3 +168,18 @@ if (response.ok) location.assign('/app')
 `bun run local:stop` preserves data. `bun run local:reset` stops the instance and
 erases its local application data. Run `bun run local:start` without `--seed` for an
 empty app after reset. Each checkout has its own ports and state in `.setup.local/`.
+
+Convex [anonymous mode](https://docs.convex.dev/cli/agent-mode) downloads the backend and
+stores its database in the CLI project's `.convex/local/default/`. Affect keeps that project
+under `.setup.local/anonymous/` so an existing hosted profile cannot select the target.
+The first start requires internet access. Convex normally searches for free ports from 3210.
+Vite inherits the URLs selected by Convex. The launcher chooses a free web port and gives
+each checkout a distinct localhost hostname to isolate browser cookies. It pipes local settings
+through [convex env set](https://docs.convex.dev/cli/reference/env) and starts Vite with
+[convex dev --start](https://docs.convex.dev/cli/reference/dev).
+
+The seed is an ordinary internal mutation invoked by `convex run seed:populate`.
+Convex also supports `dev --run` at startup, [file imports](https://docs.convex.dev/database/import-export/import),
+and [deploy --preview-run](https://docs.convex.dev/production/multiple-deployments) on preview creation.
+The [Compose alternative](https://docs.convex.dev/self-hosting) requires a Docker engine and
+Compose on each machine, including cloud sandboxes, plus mapped ports and persistent volumes.
