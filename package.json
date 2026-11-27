@@ -7,6 +7,12 @@
   ],
   "type": "module",
   "scripts": {
+    "local:seed": "node scripts/local.ts seed",
+    "local:reset": "node scripts/local.ts reset",
+    "local:code": "node scripts/local.ts code",
+    "local:count": "node scripts/local.ts count",
+    "local:start": "node scripts/local.ts start",
+    "local:stop": "node scripts/local.ts stop",
     "dev": "portless run --name affect-tanstack bun run --filter @affect/web dev",
     "dev:localhost": "bun run --filter @affect/web dev:localhost",
     "build": "bun run --filter @affect/web build",

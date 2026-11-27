@@ -1,0 +1,84 @@
+name: Keyless local smoke
+on:
+  pull_request:
+    paths:
+      - scripts/local.ts
+      - scripts/setup.sh
+      - scripts/mise.sh
+      - 'convex/**'
+      - apps/web/vite.config.ts
+      - package.json
+      - bun.lock
+      - mise.toml
+      - .github/workflows/local.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/local.ts
+      - scripts/setup.sh
+      - scripts/mise.sh
+      - 'convex/**'
+      - apps/web/vite.config.ts
+      - package.json
+      - bun.lock
+      - mise.toml
+      - .github/workflows/local.yml
+concurrency:
+  group: keyless-local-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  smoke:
+    strategy:
+      matrix:
+        os: ${{ fromJSON(github.repository == 'nahtnam/affect' && '["ubuntu-latest","macos-latest"]' || '["ubuntu-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      MISE_NO_ENV: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/setup.sh --local
+      - shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$RUNNER_OS" == Linux && -z "${OFFLINE:-}" ]]; then
+            exec sudo unshare --net bash -ec '
+              ip link set lo up
+              exec sudo -H -u "$SUDO_USER" env RUNNER_OS=Linux RUNNER_TEMP="$2" MISE_NO_ENV=1 OFFLINE=1 bash "$1"
+            ' _ "$0" "$RUNNER_TEMP"
+          fi
+          local_app() { bash scripts/mise.sh exec -- bun --no-env-file run "local:$@"; }
+          trap 'local_app stop' EXIT
+          output=$(local_app start --seed)
+          line=$(tail -n 1 <<< "$output")
+          [[ "$line" == URL=http://*.localhost:* ]]
+          curl --fail --silent --show-error "${line#URL=}" -o "$RUNNER_TEMP/page"
+          grep -q '>Affect</h1>' "$RUNNER_TEMP/page"
+          [[ "$(local_app count)" == 1 ]]
+          local_app seed
+          [[ "$(local_app count)" == 1 ]]
+          otp=$(local_app code)
+          curl --fail --silent --show-error "${line#URL=}/api/auth/sign-in/email-otp" \
+            -H "Origin: ${line#URL=}" -H 'Content-Type: application/json' \
+            --data-binary @- -o /dev/null <<< "{\"email\":\"demo@example.test\",\"otp\":\"$otp\"}"
+          crash_cli() {
+            cli_pid=$(jq -r .pid .setup.local/anonymous/runtime.json)
+            vite_pid=$(pgrep -P "$cli_pid" -f 'vite/bin/vite.js')
+            kill -9 "$cli_pid"
+          }
+          assert_stopped() {
+            if pgrep -g "$cli_pid" || pgrep -g "$vite_pid"; then exit 1; fi
+          }
+          crash_cli
+          local_app stop
+          assert_stopped
+          if local_app seed; then exit 1; fi
+          local_app start
+          [[ "$(local_app count)" == 1 ]]
+          crash_cli
+          local_app reset
+          assert_stopped
+          local_app start
+          [[ "$(local_app count)" == 0 ]]

@@ -140,3 +140,49 @@ For previews, the CLI resolves the frontend origin from `VERCEL_URL` or an expli
 - TanStack Intent setup: https://tanstack.com/intent/latest/docs/getting-started/quick-start-consumers
 
 The combined integration guide is a starting point. This project additionally requires confirmed absence of a session to be distinguished from service/adapter failure; a token 401 by itself is ambiguous.
+
+## Run locally without secrets
+
+Run `bash scripts/setup.sh --local` once per checkout while online. From any fresh shell in
+that checkout, use the pinned tools with dotenv loading disabled:
+
+```sh
+local_app() { MISE_NO_ENV=1 bash scripts/mise.sh exec -- bun --no-env-file run "local:$@"; }
+local_app start --seed   # prints URL=<origin> when ready
+local_app seed           # safe to repeat; customize convex/seed.ts
+local_app code           # gets a fresh Better Auth code for demo@example.test
+```
+
+Open the printed URL. In that page’s browser console run the following and enter
+the code at the prompt. Browser automation can run the same fetch in page context
+with the code supplied as an argument. The local command uses the internal email
+capture action. Better Auth verifies the OTP and sets the browser session cookie.
+
+```js
+const response = await fetch('/api/auth/sign-in/email-otp', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email: 'demo@example.test', otp: prompt('Local sign-in code') }),
+})
+if (response.ok) location.assign('/app')
+```
+
+`local_app stop` preserves data. `local_app reset` stops the instance and
+erases its local application data. Run `local_app start` without `--seed` for an
+empty app after reset. Each checkout has its own ports and state in `.setup.local/`.
+
+Convex [anonymous mode](https://docs.convex.dev/cli/agent-mode) downloads the backend and
+stores its database in the CLI project's `.convex/local/default/`. Affect keeps that project
+under `.setup.local/anonymous/` so an existing hosted profile cannot select the target.
+Setup downloads the CLI-selected backend and dashboard into the toolchain’s writable XDG cache, shared
+across checkouts. If the toolchain falls back to checkout storage, the backend uses an
+owner-only cache in the system temporary directory. Start, seed, and reset work offline.
+Reset keeps the checkout’s CLI identity so Convex can reopen an empty database offline.
+Vite inherits the URLs selected by Convex. The launcher chooses a free web port and gives
+each checkout a distinct localhost hostname to isolate browser cookies. It pipes local settings
+through [convex env set](https://docs.convex.dev/cli/reference/env) and starts Vite with
+[convex dev --start](https://docs.convex.dev/cli/reference/dev).
+
+The seed is an ordinary internal mutation invoked by `convex run seed:populate`.
+Convex also supports `dev --run` at startup, [file imports](https://docs.convex.dev/database/import-export/import),
+and [deploy --preview-run](https://docs.convex.dev/production/multiple-deployments) on preview creation.

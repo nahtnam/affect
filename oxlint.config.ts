@@ -39,6 +39,18 @@ export default defineConfig({
   },
   overrides: [
     {
+      // The local launcher filters the process environment and polls its child sequentially.
+      files: ['scripts/local.ts'],
+      rules: {
+        'node/no-process-env': 'off',
+        'eslint/no-await-in-loop': 'off',
+        'effecttsgo/async-function': 'off',
+        'effecttsgo/schema-sync': 'off',
+        'effecttsgo/node-builtin-import': 'off',
+        'effecttsgo/process-env': 'off',
+      },
+    },
+    {
       // Local setup and its fixtures are native process/filesystem boundaries; domain values use Effect Schema.
       files: ['scripts/validate-development-setup.ts', 'tests/setup.test.ts'],
       rules: {

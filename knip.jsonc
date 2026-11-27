@@ -4,6 +4,8 @@
   "workspaces": {
     ".": { "entry": ["scripts/validate-development-setup.ts"] },
   },
+  // The local launcher uses the system process table to verify its detached Convex CLI.
+  "ignoreBinaries": ["pgrep"],
   "ignoreFiles": [".agents/**", "apps/web/src/components/ui/**"],
   "ignoreIssues": {
     "apps/web/src/components/ui/**": ["exports"],

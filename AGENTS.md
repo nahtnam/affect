@@ -137,3 +137,11 @@ Group pages under the appropriate pathless layout (`_with-user`, `_with-admin`, 
 - Keep optional PostHog and tracing disabled when configuration is absent. Missing telemetry must not block public content or auth.
 - Trace only stable operation names and non-sensitive attributes. Never export passwords, OTPs, cookies, JWTs, authorization headers, raw bodies, or sensitive URLs. Keep HTTP exporters out of Convex queries and mutations; verify actual action/HTTP wiring and disabled/failure paths when tracing changes.
 - Keep app data collection minimized. Preserve no-capture/no-record treatment for the development email dock and its previews.
+
+## Run locally without secrets
+
+Run `bash scripts/setup.sh --local`, then use the README’s `local_app start --seed`. Open the printed URL.
+`bun run local:seed` reapplies `convex/seed.ts`. Use `bun run local:code` and the
+same-origin browser fetch in README.md to sign in as `demo@example.test` and visit `/app`.
+`bun run local:stop` preserves this checkout’s data. `bun run local:reset` clears it.
+In a fresh shell use the `local_app` function documented in README.md.

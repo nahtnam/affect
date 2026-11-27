@@ -17,6 +17,7 @@ import type * as envDefinition from "../envDefinition.js";
 import type * as http from "../http.js";
 import type * as lib_localDevelopment from "../lib/localDevelopment.js";
 import type * as migrations from "../migrations.js";
+import type * as seed from "../seed.js";
 import type * as tracing from "../tracing.js";
 import type * as workflows from "../workflows.js";
 
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/localDevelopment": typeof lib_localDevelopment;
   migrations: typeof migrations;
+  seed: typeof seed;
   tracing: typeof tracing;
   workflows: typeof workflows;
 }>;
