@@ -10,6 +10,7 @@ import { createLoopbackHostGuard } from './vite/loopback-host-guard'
 import { resolveServerOptions } from './vite/server-options'
 
 export default defineConfig(({ command, isPreview }) => {
+  const keyless = command === 'serve' && isPreview !== true && process.env['AFFECT_LOCAL'] === '1'
   const requestedProfile = process.env['VERCEL_ENV']
 
   const defaultProfile =
@@ -35,10 +36,23 @@ export default defineConfig(({ command, isPreview }) => {
   })
 
   return {
+    envDir: keyless ? false : '.',
     resolve: { tsconfigPaths: true },
     server: {
       host,
       port,
+      // Vite replaces the default deny list when supplying additional patterns.
+      fs: {
+        deny: [
+          '.env',
+          '.env.*',
+          '*.{crt,pem,key,p12,pfx,cer,der}',
+          '.npmrc',
+          '.yarnrc.yml',
+          '**/.git/**',
+          '**/.setup.local/**',
+        ],
+      },
       strictPort: true,
       allowedHosts: [
         'localhost',
@@ -58,21 +72,22 @@ export default defineConfig(({ command, isPreview }) => {
       createLoopbackHostGuard(portlessAuthority),
       tailwindcss(),
       tanstackStart(),
-      createEncryptedProfilePlugin({ profileDirectory, profile }),
-      nitro({
-        serverDir: 'server',
-        // Keep dotenvx's CommonJS dependencies native in Node server artifacts.
-        traceDeps: ['@dotenvx/dotenvx'],
-        serverAssets: [{ baseName: 'affect-profile', dir: profileDirectory, pattern: '.env' }],
-        routeRules: {
-          '/**': {
-            headers: {
-              'X-Content-Type-Options': 'nosniff',
-              'X-Frame-Options': 'SAMEORIGIN',
+      !keyless && createEncryptedProfilePlugin({ profileDirectory, profile }),
+      !keyless &&
+        nitro({
+          serverDir: 'server',
+          // Keep dotenvx's CommonJS dependencies native in Node server artifacts.
+          traceDeps: ['@dotenvx/dotenvx'],
+          serverAssets: [{ baseName: 'affect-profile', dir: profileDirectory, pattern: '.env' }],
+          routeRules: {
+            '/**': {
+              headers: {
+                'X-Content-Type-Options': 'nosniff',
+                'X-Frame-Options': 'SAMEORIGIN',
+              },
             },
           },
-        },
-      }),
+        }),
       viteReact(),
     ],
     ssr: { noExternal: ['@convex-dev/better-auth'] },

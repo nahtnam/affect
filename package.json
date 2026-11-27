@@ -7,6 +7,12 @@
   ],
   "type": "module",
   "scripts": {
+    "local:seed": "bun --no-env-file scripts/local.ts seed",
+    "local:reset": "bun --no-env-file scripts/local.ts reset",
+    "local:code": "bun --no-env-file scripts/local.ts code",
+    "local:count": "bun --no-env-file scripts/local.ts count",
+    "local:start": "bun --no-env-file scripts/local.ts start",
+    "local:stop": "bun --no-env-file scripts/local.ts stop",
     "dev": "portless run --name affect-tanstack bun run --filter @affect/web dev",
     "dev:localhost": "bun run --filter @affect/web dev:localhost",
     "build": "bun run --filter @affect/web build",

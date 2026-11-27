@@ -13,14 +13,17 @@ fail() {
 
 usage() {
   printf '%s\n' \
-    'Usage: bash scripts/setup.sh [--hosted <affect env init flags...>]' \
+    'Usage: bash scripts/setup.sh [--local | --hosted <affect env init flags...>]' \
     'Default: install tools and validate an existing local development profile.' \
+    '--local: install the toolchain, dependencies and verified native backend without profiles.' \
     '--hosted: explicitly initialize or restore verified hosted profiles before local validation.' \
     'Hosted mode requires a released Affect CLI with env init support and separate provider authorization.'
 }
 
+setup_local=0
 setup_hosted=0
 case "${1:-}" in
+  --local) setup_local=1; [ "$#" = 1 ] || fail '--local takes no arguments.' ;;
   --hosted) setup_hosted=1; shift ;;
   --help|-h) usage; exit 0 ;;
   '') ;;
@@ -28,7 +31,7 @@ case "${1:-}" in
 esac
 
 command -v curl >/dev/null 2>&1 || fail 'Setup requires curl.'
-if [ "$setup_hosted" = 0 ]; then
+if [ "$setup_local" = 0 ] && [ "$setup_hosted" = 0 ]; then
   [ "$#" = 0 ] || fail 'Unexpected setup arguments. Use --help or --hosted followed by affect env init flags.'
   [ -f env/development/.env ] || fail 'Provide the encrypted development profile at env/development/.env before setup.'
   if [ -z "${DOTENV_PRIVATE_KEY:-}" ] && [ ! -f env/development/.env.keys ]; then
@@ -51,6 +54,12 @@ fi
 
 MISE_NO_ENV=1 "$setup_mise" trust mise.toml
 MISE_NO_ENV=1 "$setup_mise" install
+if [ "$setup_local" = 1 ]; then
+  MISE_NO_ENV=1 "$setup_mise" exec -- bun --no-env-file install --frozen-lockfile
+  bash scripts/install-local-backend.sh
+  toolchain_save
+  exit 0
+fi
 MISE_NO_ENV=1 "$setup_mise" exec -- bun install --frozen-lockfile
 if [ "$setup_hosted" = 1 ]; then
   # Older CLIs can exit successfully while showing parent-command help for an

@@ -135,3 +135,11 @@ Use the narrowest applicable project skill:
 - Keep optional PostHog and tracing disabled when configuration is absent. Missing telemetry must not block public content or auth.
 - Trace only stable operation names and non-sensitive attributes. Never export passwords, OTPs, cookies, JWTs, authorization headers, raw bodies, or sensitive URLs. Keep HTTP exporters out of Convex queries and mutations; verify actual action/HTTP wiring and disabled/failure paths when tracing changes.
 - Keep app data collection minimized. Preserve no-capture/no-record treatment for the development email dock and its previews.
+
+## Run locally without secrets
+
+Run `bash scripts/setup.sh --local`, then `bun run local:start --seed`. Open the printed URL.
+`bun run local:seed` reapplies `convex/seed.ts`. Use `bun run local:code` and the
+same-origin browser fetch in README.md to sign in as `demo@example.test` and visit `/app`.
+`bun run local:stop` preserves this checkout’s data. `bun run local:reset` clears it.
+In a fresh shell prefix Bun commands with `MISE_NO_ENV=1 bash scripts/mise.sh exec --`.

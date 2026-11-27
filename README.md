@@ -138,3 +138,33 @@ For previews, the CLI resolves the frontend origin from `VERCEL_URL` or an expli
 - TanStack Intent setup: https://tanstack.com/intent/latest/docs/getting-started/quick-start-consumers
 
 The combined integration guide is a starting point. This project additionally requires confirmed absence of a session to be distinguished from service/adapter failure; a token 401 by itself is ambiguous.
+
+## Run locally without secrets
+
+Run `bash scripts/setup.sh --local` once per checkout. With the pinned Bun and Node on
+PATH, use the commands below. In a fresh shell prefix each Bun command with
+`MISE_NO_ENV=1 bash scripts/mise.sh exec --` to select those tools.
+
+```sh
+bun run local:start --seed   # prints URL=<origin> when ready
+bun run local:seed           # safe to repeat; customize convex/seed.ts
+bun run local:code           # gets a fresh Better Auth code for demo@example.test
+```
+
+Open the printed URL. In that page’s browser console run the following and enter
+the code at the prompt. Browser automation can run the same fetch in page context
+with the code supplied as an argument. The local command uses the internal email
+capture action. Better Auth verifies the OTP and sets the browser session cookie.
+
+```js
+const response = await fetch('/api/auth/sign-in/email-otp', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email: 'demo@example.test', otp: prompt('Local sign-in code') }),
+})
+if (response.ok) location.assign('/app')
+```
+
+`bun run local:stop` preserves data. `bun run local:reset` stops the instance and
+erases its local application data. Run `bun run local:start` without `--seed` for an
+empty app after reset. Each checkout has its own ports and state in `.setup.local/`.

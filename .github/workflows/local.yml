@@ -1,0 +1,36 @@
+name: Keyless local smoke
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  smoke:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      MISE_NO_ENV: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/setup.sh --local
+      - shell: bash
+        run: |
+          set -euo pipefail
+          local_app() { bash scripts/mise.sh exec -- bun run "local:$@"; }
+          trap 'local_app stop' EXIT
+          output=$(local_app start --seed)
+          line=$(tail -n 1 <<< "$output")
+          [[ "$line" == URL=http://127.0.0.1:* ]]
+          curl --fail --silent --show-error "${line#URL=}" -o "$RUNNER_TEMP/page"
+          grep -q '>Affect</h1>' "$RUNNER_TEMP/page"
+          [[ "$(local_app count)" == 1 ]]
+          local_app seed
+          [[ "$(local_app count)" == 1 ]]
+          local_app stop
+          if local_app seed; then exit 1; fi
+          local_app start
+          [[ "$(local_app count)" == 1 ]]
+          local_app reset
+          local_app start
+          [[ "$(local_app count)" == 0 ]]
