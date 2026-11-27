@@ -81,15 +81,87 @@ const running = (pid: number) => {
   return Str.trim(match.stdout) === String(pid)
 }
 
-const stop = async (pid?: number) => {
-  if (pid !== undefined && running(pid)) {
-    process.kill(pid, 'SIGINT')
+// Convex detaches its --start command into a second process group. The backend
+// command retains the checkout's database path even after the CLI crashes.
+const localGroups = (pid?: number) => {
+  const snapshot = spawnSync('ps', ['-axww', '-o', 'pid=,pgid=,command='], { encoding: 'utf-8' })
+  assert.equal(snapshot.status, 0, 'Could not inspect local processes.')
+  const groups = new Set<number>()
+  const database = path.join(state, '.convex/local/default/convex_local_backend.sqlite3')
+  const log = path.join(state, 'dev.log')
 
-    for (let i = 0; i < 150 && running(pid); i += 1) {
-      await sleep(100)
+  for (const line of Str.split(snapshot.stdout, '\n')) {
+    const { member, group, command } =
+      /^\s*(?<member>\d+)\s+(?<group>\d+)\s+(?<command>.+)$/u.exec(line)?.groups ?? {}
+
+    if (member === undefined || command === undefined || Number(group) <= 1) {
+      continue
     }
 
-    assert.ok(!running(pid), 'Convex did not stop.')
+    const backend =
+      Str.startsWith(`${cache}/binaries/`)(command) &&
+      Str.includes('/convex-local-backend ')(command) &&
+      Str.endsWith(` ${database}`)(command)
+
+    if (backend) {
+      assert.equal(Number(group), pid, 'Cannot establish ownership of the local backend group.')
+    }
+
+    if (
+      backend ||
+      (Number(member) === pid &&
+        Number(group) === pid &&
+        new RegExp(processPattern, 'u').test(command))
+    ) {
+      groups.add(Number(group))
+    }
+
+    if (
+      member === group &&
+      command === `node ${root}/node_modules/vite/bin/vite.js` &&
+      fs.existsSync(log)
+    ) {
+      // A manually started Vite in the same checkout does not inherit this log.
+      const writer = spawnSync('lsof', ['-a', '-p', member, '-d', '1', '-t', '--', log], {
+        encoding: 'utf-8',
+      })
+
+      assert.ifError(writer.error)
+
+      if (writer.status === 0 && Str.trim(writer.stdout) === member) {
+        groups.add(Number(group))
+      }
+    }
+  }
+
+  return groups
+}
+
+const stop = async (pid?: number) => {
+  const groups = localGroups(pid)
+
+  for (const group of groups) {
+    try {
+      process.kill(-group, 'SIGTERM')
+    } catch (error) {
+      if (!(error instanceof Error && 'code' in error && error.code === 'ESRCH')) {
+        throw error
+      }
+    }
+  }
+
+  for (const group of groups) {
+    for (let attempt = 0; ; attempt += 1) {
+      const members = spawnSync('pgrep', ['-g', String(group)], { encoding: 'utf-8' })
+
+      if (members.status === 1) {
+        break
+      }
+
+      assert.equal(members.status, 0, 'Could not inspect local process group.')
+      assert.ok(attempt < 150, 'Local process group did not stop.')
+      await sleep(100)
+    }
   }
 
   fs.rmSync(runtime, { force: true })
@@ -246,6 +318,7 @@ if (action === 'setup') {
   if (data === undefined || !running(data.pid)) {
     assert.equal(action, 'start', 'Run local:start first.')
 
+    await stop(data?.pid)
     data = await start()
   }
 

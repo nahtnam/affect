@@ -1,12 +1,38 @@
 name: Keyless local smoke
-on: [push, pull_request]
+on:
+  pull_request:
+    paths:
+      - scripts/local.ts
+      - scripts/setup.sh
+      - scripts/mise.sh
+      - 'convex/**'
+      - apps/web/vite.config.ts
+      - package.json
+      - bun.lock
+      - mise.toml
+      - .github/workflows/local.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/local.ts
+      - scripts/setup.sh
+      - scripts/mise.sh
+      - 'convex/**'
+      - apps/web/vite.config.ts
+      - package.json
+      - bun.lock
+      - mise.toml
+      - .github/workflows/local.yml
+concurrency:
+  group: keyless-local-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
   smoke:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ${{ fromJSON(github.repository == 'nahtnam/affect' && '["ubuntu-latest","macos-latest"]' || '["ubuntu-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:
@@ -37,10 +63,22 @@ jobs:
           curl --fail --silent --show-error "${line#URL=}/api/auth/sign-in/email-otp" \
             -H "Origin: ${line#URL=}" -H 'Content-Type: application/json' \
             --data-binary @- -o /dev/null <<< "{\"email\":\"demo@example.test\",\"otp\":\"$otp\"}"
+          crash_cli() {
+            cli_pid=$(jq -r .pid .setup.local/anonymous/runtime.json)
+            vite_pid=$(pgrep -P "$cli_pid" -f 'vite/bin/vite.js')
+            kill -9 "$cli_pid"
+          }
+          assert_stopped() {
+            if pgrep -g "$cli_pid" || pgrep -g "$vite_pid"; then exit 1; fi
+          }
+          crash_cli
           local_app stop
+          assert_stopped
           if local_app seed; then exit 1; fi
           local_app start
           [[ "$(local_app count)" == 1 ]]
+          crash_cli
           local_app reset
+          assert_stopped
           local_app start
           [[ "$(local_app count)" == 0 ]]

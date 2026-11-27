@@ -5,6 +5,9 @@ import { components } from './_generated/api'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import { internalMutation, internalQuery } from './_generated/server'
 
+import { authEnvironment } from './env'
+import { isLocalDevelopmentOrigin } from './lib/localDevelopment'
+
 const email = 'demo@example.test'
 
 const demoUsers = (ctx: Pick<QueryCtx, 'runQuery'>) =>
@@ -28,6 +31,12 @@ export const populate = internalMutation({
   returns: v.null(),
   handler: Effect.fnUntraced(
     function* populate(ctx: MutationCtx) {
+      const { SITE_URL } = yield* authEnvironment
+
+      if (!isLocalDevelopmentOrigin(SITE_URL)) {
+        return yield* Effect.die('Seeding requires a local development origin.')
+      }
+
       const { page } = yield* Effect.promise(() => demoUsers(ctx))
 
       if (page.length === 0) {

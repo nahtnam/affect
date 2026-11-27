@@ -140,7 +140,7 @@ Group pages under the appropriate pathless layout (`_with-user`, `_with-admin`, 
 
 ## Run locally without secrets
 
-Run `bash scripts/setup.sh --local`, then `bun run local:start --seed`. Open the printed URL.
+Run `bash scripts/setup.sh --local`, then use the README’s `local_app start --seed`. Open the printed URL.
 `bun run local:seed` reapplies `convex/seed.ts`. Use `bun run local:code` and the
 same-origin browser fetch in README.md to sign in as `demo@example.test` and visit `/app`.
 `bun run local:stop` preserves this checkout’s data. `bun run local:reset` clears it.
