@@ -9,6 +9,8 @@ Affect is a product in discovery. The current public home and authenticated app 
 - Backend: convex/ at the repository root.
 - Workspace patterns support future apps/* and packages/* without placeholder packages.
 
+Page routes live under `apps/web/src/routes`. The pathless layouts group `/app` under `_with-user`, `/admin` under `_with-admin`, and `/sign-in` under `_without-user`.
+
 ## Setup
 
 Hosted initialization has an explicit entry point:
