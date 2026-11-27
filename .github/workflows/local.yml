@@ -18,7 +18,10 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$RUNNER_OS" == Linux && -z "${OFFLINE:-}" ]]; then
-            exec sudo -E unshare --net bash -ec 'ip link set lo up; exec sudo -E -u "$SUDO_USER" env OFFLINE=1 bash "$1"' _ "$0"
+            exec sudo unshare --net bash -ec '
+              ip link set lo up
+              exec sudo -H -u "$SUDO_USER" env RUNNER_OS=Linux RUNNER_TEMP="$2" MISE_NO_ENV=1 OFFLINE=1 bash "$1"
+            ' _ "$0" "$RUNNER_TEMP"
           fi
           local_app() { bash scripts/mise.sh exec -- bun --no-env-file run "local:$@"; }
           trap 'local_app stop' EXIT
