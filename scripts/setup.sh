@@ -56,6 +56,26 @@ MISE_NO_ENV=1 "$setup_mise" trust mise.toml
 MISE_NO_ENV=1 "$setup_mise" install
 if [ "$setup_local" = 1 ]; then
   MISE_NO_ENV=1 "$setup_mise" exec -- bun --no-env-file install --frozen-lockfile
+  backend_cache="$XDG_CACHE_HOME"
+  if [[ "$backend_cache" == "$toolchain_state_dir/cache" ]]; then
+    backend_cache="/tmp/affect-backends-$(id -u)"
+    (umask 077; mkdir "$backend_cache") 2>/dev/null || {
+      [[ -d "$backend_cache" && ! -L "$backend_cache" && -O "$backend_cache" ]] && toolchain_mode "$backend_cache" && [[ "$toolchain_file_mode" == 700 ]] || fail "Unsafe shared backend cache."
+    }
+  fi
+  (
+    umask 077
+    # Each CLI release keeps its matching dashboard. Backend binaries are versioned by Convex.
+    cli_version=$(MISE_NO_ENV=1 "$setup_mise" exec -- node -p 'require("convex/package.json").version')
+    cache="$backend_cache/affect/convex-$cli_version"
+    stage=$(mktemp -d "$toolchain_state_dir/prepare.XXXXXX")
+    trap 'rm -rf -- "$stage"' EXIT
+    mkdir -p "$backend_cache/convex/binaries" "$cache" "$toolchain_state_dir/home/.cache"
+    ln -sfn "$backend_cache/convex/binaries" "$cache/binaries"
+    ln -sfn "$cache" "$toolchain_state_dir/home/.cache/convex"
+    ln -s "$setup_root/package.json" "$setup_root/node_modules" "$stage/"
+    MISE_NO_ENV=1 "$setup_mise" exec -- node scripts/local.ts setup "$stage"
+  )
   toolchain_save
   exit 0
 fi

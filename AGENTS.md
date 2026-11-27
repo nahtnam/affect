@@ -142,4 +142,4 @@ Run `bash scripts/setup.sh --local`, then `bun run local:start --seed`. Open the
 `bun run local:seed` reapplies `convex/seed.ts`. Use `bun run local:code` and the
 same-origin browser fetch in README.md to sign in as `demo@example.test` and visit `/app`.
 `bun run local:stop` preserves this checkout’s data. `bun run local:reset` clears it.
-In a fresh shell prefix Bun commands with `MISE_NO_ENV=1 bash scripts/mise.sh exec --`.
+In a fresh shell use the `local_app` function documented in README.md.
