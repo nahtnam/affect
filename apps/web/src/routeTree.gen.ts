@@ -10,11 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
-import { Route as SignedOutRouteImport } from './routes/_signed-out'
-import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated.admin'
-import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated.app'
-import { Route as SignedOutSignInRouteImport } from './routes/_signed-out.sign-in'
+import { Route as WithAdminRouteImport } from './routes/_with-admin'
+import { Route as WithUserRouteImport } from './routes/_with-user'
+import { Route as WithoutUserRouteImport } from './routes/_without-user'
+import { Route as WithAdminAdminIndexRouteImport } from './routes/_with-admin/admin/index'
+import { Route as WithUserAppIndexRouteImport } from './routes/_with-user/app/index'
+import { Route as WithoutUserSignInIndexRouteImport } from './routes/_without-user/sign-in/index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -22,28 +23,32 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRoute = AuthenticatedRouteImport.update({
-  id: '/_authenticated',
+const WithAdminRoute = WithAdminRouteImport.update({
+  id: '/_with-admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SignedOutRoute = SignedOutRouteImport.update({
-  id: '/_signed-out',
+const WithUserRoute = WithUserRouteImport.update({
+  id: '/_with-user',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => AuthenticatedRoute,
+const WithoutUserRoute = WithoutUserRouteImport.update({
+  id: '/_without-user',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
-  id: '/app',
-  path: '/app',
-  getParentRoute: () => AuthenticatedRoute,
+const WithAdminAdminIndexRoute = WithAdminAdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => WithAdminRoute,
 } as any)
-const SignedOutSignInRoute = SignedOutSignInRouteImport.update({
-  id: '/sign-in',
-  path: '/sign-in',
-  getParentRoute: () => SignedOutRoute,
+const WithUserAppIndexRoute = WithUserAppIndexRouteImport.update({
+  id: '/app/',
+  path: '/app/',
+  getParentRoute: () => WithUserRoute,
+} as any)
+const WithoutUserSignInIndexRoute = WithoutUserSignInIndexRouteImport.update({
+  id: '/sign-in/',
+  path: '/sign-in/',
+  getParentRoute: () => WithoutUserRoute,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
@@ -53,48 +58,51 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AuthenticatedAdminRoute
-  '/app': typeof AuthenticatedAppRoute
-  '/sign-in': typeof SignedOutSignInRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/admin/': typeof WithAdminAdminIndexRoute
+  '/app/': typeof WithUserAppIndexRoute
+  '/sign-in/': typeof WithoutUserSignInIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AuthenticatedAdminRoute
-  '/app': typeof AuthenticatedAppRoute
-  '/sign-in': typeof SignedOutSignInRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/admin': typeof WithAdminAdminIndexRoute
+  '/app': typeof WithUserAppIndexRoute
+  '/sign-in': typeof WithoutUserSignInIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/_authenticated': typeof AuthenticatedRouteWithChildren
-  '/_signed-out': typeof SignedOutRouteWithChildren
-  '/_authenticated/admin': typeof AuthenticatedAdminRoute
-  '/_authenticated/app': typeof AuthenticatedAppRoute
-  '/_signed-out/sign-in': typeof SignedOutSignInRoute
+  '/_with-admin': typeof WithAdminRouteWithChildren
+  '/_with-user': typeof WithUserRouteWithChildren
+  '/_without-user': typeof WithoutUserRouteWithChildren
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/_with-admin/admin/': typeof WithAdminAdminIndexRoute
+  '/_with-user/app/': typeof WithUserAppIndexRoute
+  '/_without-user/sign-in/': typeof WithoutUserSignInIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/app' | '/sign-in' | '/api/auth/$'
+  fullPaths: '/' | '/api/auth/$' | '/admin/' | '/app/' | '/sign-in/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/app' | '/sign-in' | '/api/auth/$'
+  to: '/' | '/api/auth/$' | '/admin' | '/app' | '/sign-in'
   id:
     | '__root__'
     | '/'
-    | '/_authenticated'
-    | '/_signed-out'
-    | '/_authenticated/admin'
-    | '/_authenticated/app'
-    | '/_signed-out/sign-in'
+    | '/_with-admin'
+    | '/_with-user'
+    | '/_without-user'
     | '/api/auth/$'
+    | '/_with-admin/admin/'
+    | '/_with-user/app/'
+    | '/_without-user/sign-in/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
-  SignedOutRoute: typeof SignedOutRouteWithChildren
+  WithAdminRoute: typeof WithAdminRouteWithChildren
+  WithUserRoute: typeof WithUserRouteWithChildren
+  WithoutUserRoute: typeof WithoutUserRouteWithChildren
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -107,40 +115,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated': {
-      id: '/_authenticated'
+    '/_with-admin': {
+      id: '/_with-admin'
       path: ''
       fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedRouteImport
+      preLoaderRoute: typeof WithAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_signed-out': {
-      id: '/_signed-out'
+    '/_with-user': {
+      id: '/_with-user'
       path: ''
       fullPath: '/'
-      preLoaderRoute: typeof SignedOutRouteImport
+      preLoaderRoute: typeof WithUserRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/admin': {
-      id: '/_authenticated/admin'
+    '/_without-user': {
+      id: '/_without-user'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof WithoutUserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_with-admin/admin/': {
+      id: '/_with-admin/admin/'
       path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AuthenticatedAdminRouteImport
-      parentRoute: typeof AuthenticatedRoute
+      fullPath: '/admin/'
+      preLoaderRoute: typeof WithAdminAdminIndexRouteImport
+      parentRoute: typeof WithAdminRoute
     }
-    '/_authenticated/app': {
-      id: '/_authenticated/app'
+    '/_with-user/app/': {
+      id: '/_with-user/app/'
       path: '/app'
-      fullPath: '/app'
-      preLoaderRoute: typeof AuthenticatedAppRouteImport
-      parentRoute: typeof AuthenticatedRoute
+      fullPath: '/app/'
+      preLoaderRoute: typeof WithUserAppIndexRouteImport
+      parentRoute: typeof WithUserRoute
     }
-    '/_signed-out/sign-in': {
-      id: '/_signed-out/sign-in'
+    '/_without-user/sign-in/': {
+      id: '/_without-user/sign-in/'
       path: '/sign-in'
-      fullPath: '/sign-in'
-      preLoaderRoute: typeof SignedOutSignInRouteImport
-      parentRoute: typeof SignedOutRoute
+      fullPath: '/sign-in/'
+      preLoaderRoute: typeof WithoutUserSignInIndexRouteImport
+      parentRoute: typeof WithoutUserRoute
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -152,36 +167,47 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AuthenticatedRouteChildren {
-  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
-  AuthenticatedAppRoute: typeof AuthenticatedAppRoute
+interface WithAdminRouteChildren {
+  WithAdminAdminIndexRoute: typeof WithAdminAdminIndexRoute
 }
 
-const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
-  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
-  AuthenticatedAppRoute: AuthenticatedAppRoute,
+const WithAdminRouteChildren: WithAdminRouteChildren = {
+  WithAdminAdminIndexRoute: WithAdminAdminIndexRoute,
 }
 
-const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
-  AuthenticatedRouteChildren,
+const WithAdminRouteWithChildren = WithAdminRoute._addFileChildren(
+  WithAdminRouteChildren,
 )
 
-interface SignedOutRouteChildren {
-  SignedOutSignInRoute: typeof SignedOutSignInRoute
+interface WithUserRouteChildren {
+  WithUserAppIndexRoute: typeof WithUserAppIndexRoute
 }
 
-const SignedOutRouteChildren: SignedOutRouteChildren = {
-  SignedOutSignInRoute: SignedOutSignInRoute,
+const WithUserRouteChildren: WithUserRouteChildren = {
+  WithUserAppIndexRoute: WithUserAppIndexRoute,
 }
 
-const SignedOutRouteWithChildren = SignedOutRoute._addFileChildren(
-  SignedOutRouteChildren,
+const WithUserRouteWithChildren = WithUserRoute._addFileChildren(
+  WithUserRouteChildren,
+)
+
+interface WithoutUserRouteChildren {
+  WithoutUserSignInIndexRoute: typeof WithoutUserSignInIndexRoute
+}
+
+const WithoutUserRouteChildren: WithoutUserRouteChildren = {
+  WithoutUserSignInIndexRoute: WithoutUserSignInIndexRoute,
+}
+
+const WithoutUserRouteWithChildren = WithoutUserRoute._addFileChildren(
+  WithoutUserRouteChildren,
 )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthenticatedRoute: AuthenticatedRouteWithChildren,
-  SignedOutRoute: SignedOutRouteWithChildren,
+  WithAdminRoute: WithAdminRouteWithChildren,
+  WithUserRoute: WithUserRouteWithChildren,
+  WithoutUserRoute: WithoutUserRouteWithChildren,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

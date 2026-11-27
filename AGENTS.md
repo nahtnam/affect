@@ -80,6 +80,8 @@ Use the narrowest applicable project skill:
 
 ## Current framework and routing
 
+Group pages under the appropriate pathless layout (`_with-user`, `_with-admin`, or `_without-user`). Use a folder with `index.tsx` for each page and keep page-specific components beside it in `-components/`.
+
 - Use TanStack Start server functions/routes for server-only operations, and TanStack Router file routes, inferred route types, loaders, validated search params and route boundaries. Do not use Next APIs, directives, route conventions, cache APIs, or generated-type commands.
 - Loaders are isomorphic unless a server-only boundary is used. Keep secrets, request cookies and server-only SDK calls behind the correct server boundary.
 - Use native route and search types. Fix the source of a type error; do not cast inferred route, loader or search data or weaken checks.

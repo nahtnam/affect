@@ -6,6 +6,6 @@ const AppHome = () => (
   </div>
 )
 
-export const Route = createFileRoute('/_authenticated/app')({
+export const Route = createFileRoute('/_with-user/app/')({
   component: AppHome,
 })

@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { authClient } from '#/auth/client'
 import { safeReturnTo } from '#/auth/return-to'
-import { SignInForm } from '#/auth/sign-in-form'
+import { SignInForm } from './-components/sign-in-form'
 
 const requestCode = async (email: string) => {
   if (import.meta.env.DEV) {
@@ -26,7 +26,7 @@ const SignIn = () => {
   )
 }
 
-export const Route = createFileRoute('/_signed-out/sign-in')({
+export const Route = createFileRoute('/_without-user/sign-in/')({
   component: SignIn,
   validateSearch: (search): { returnTo?: string } => {
     const { returnTo } = search
