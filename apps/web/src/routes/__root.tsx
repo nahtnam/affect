@@ -18,13 +18,14 @@ import type { RouterContext } from '#/router'
 
 import appCss from '../styles.css?url'
 
-const DevelopmentDevtools = import.meta.env.DEV
-  ? lazy(async () => {
-      const devtools = await import('#/devtools')
+const DevelopmentDevtools =
+  import.meta.env.DEV || import.meta.env.AFFECT_PREVIEW_INBOX
+    ? lazy(async () => {
+        const devtools = await import('#/devtools')
 
-      return { default: devtools.Devtools }
-    })
-  : null
+        return { default: devtools.Devtools }
+      })
+    : null
 
 const RouteError = ({ reset }: ErrorComponentProps) => {
   const router = useRouter()

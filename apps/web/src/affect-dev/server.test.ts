@@ -2,6 +2,7 @@ import { Array, Clock, Effect, Schema, String as EffectString } from 'effect'
 import { H3 } from 'nitro/h3'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import preview from '../../server/affect-dev/preview.server'
 import { addEmailPreview, readEmailInbox } from '../../server/affect-dev/inbox.server'
 import emails from '../../server/api/affect-dev/emails.get.dev'
 import send from '../../server/api/affect-dev/sign-in-code.post.dev'
@@ -425,4 +426,66 @@ describe('Affect Dev Email', () => {
         )
       }),
     ))
+})
+
+describe('hosted preview inbox', () => {
+  const host = 'preview.example.test'
+  const previewOrigin = `https://${host}`
+  const previewApp = new H3().all('/**', preview)
+
+  const get = (cookie = '') =>
+    previewApp.fetch(new Request(previewOrigin + emailInboxPath, { headers: { host, cookie } }))
+
+  beforeEach(() => {
+    vi.stubEnv('VERCEL', '1')
+    vi.stubEnv('VERCEL_ENV', 'preview')
+    vi.stubEnv('VERCEL_TARGET_ENV', 'preview')
+    vi.stubEnv('VITE_SITE_URL', previewOrigin)
+    vi.stubEnv('VITE_CONVEX_SITE_URL', 'https://preview-test.convex.site')
+    vi.stubEnv('PREVIEW_INBOX_SECRET', 'synthetic-preview-password-at-least-32-characters')
+  })
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+
+  it.each(['VERCEL_ENV', 'VERCEL_TARGET_ENV'])(
+    'rejects a promoted preview with production %s',
+    async (name) => {
+      vi.stubEnv(name, 'production')
+      const response = await get()
+      expect(response.status).toBe(404)
+    },
+  )
+
+  it('loads the captured code only with the same browser’s sealed cookie', async () => {
+    const fresh = { ...message, createdAt: Date.now(), expiresAt: Date.now() + ttl }
+    vi.stubGlobal(
+      'fetch',
+      upstream.mockResolvedValueOnce(Response.json({ status: 'captured', email: fresh })),
+    )
+
+    const sent = await previewApp.fetch(
+      new Request(previewOrigin + signInCodePath, {
+        method: 'POST',
+        headers: { host, origin: previewOrigin, 'content-type': 'application/json' },
+        body: json({ email: address }),
+      }),
+    )
+
+    expect(sent.status).toBe(200)
+    const cookies = sent.headers.getSetCookie()
+
+    const cookie = Array.join(
+      Array.map((item: string) => EffectString.split(item, ';')[0])(cookies),
+      '; ',
+    )
+
+    expect(cookie).toContain('__Host-affect-preview=')
+    expect(cookie).not.toContain(message.code)
+    const other = await get()
+    await expect(readJson(other)).resolves.toStrictEqual({ emails: [] })
+    const inbox = await get(cookie)
+    await expect(readJson(inbox)).resolves.toMatchObject({ emails: [{ code: message.code }] })
+  })
 })

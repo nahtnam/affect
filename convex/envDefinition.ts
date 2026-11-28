@@ -13,6 +13,7 @@ export default {
   POSTHOG_HOST: v.optional(v.string()),
   // The component requires a string; an empty token disables analytics.
   POSTHOG_PROJECT_TOKEN: v.string(),
+  PREVIEW_INBOX_SECRET: v.optional(v.string()),
   SITE_URL: v.string(),
   TRUSTED_ORIGINS: v.string(),
 } satisfies EnvDefinition

@@ -1,6 +1,7 @@
 import { Effect, Result, Schema, String } from 'effect'
 import { HttpClient, HttpClientRequest, HttpClientResponse } from 'effect/http'
 
+import { env as deployment } from './_generated/server'
 import { emailEnvironment, emailPreviewSender, emailSenderName } from './env'
 
 class EmailDeliveryError extends Schema.TaggedError<
@@ -41,6 +42,16 @@ export const sendVerificationCode = Effect.fn('sendVerificationCode')(
     otp: string,
     capture?: (message: RenderedEmail) => void,
   ) {
+    if (deployment.PREVIEW_INBOX_SECRET !== undefined && deployment.PREVIEW_INBOX_SECRET !== '') {
+      if (capture === undefined) {
+        return yield* EmailDeliveryError.make({ message: 'Use the preview inbox.' })
+      }
+
+      return yield* Effect.sync(() => {
+        capture(renderVerificationEmail(email, otp))
+      })
+    }
+
     const previewSender = yield* emailPreviewSender
 
     // Preserve legacy formatted senders without parsing or replacing their embedded name.

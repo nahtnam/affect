@@ -3,6 +3,7 @@ interface ViteTypeOptions {
 }
 
 interface ImportMetaEnv {
+  readonly AFFECT_PREVIEW_INBOX: boolean
   readonly VITE_CONVEX_URL?: string
   readonly VITE_CONVEX_SITE_URL?: string
   readonly VITE_SITE_URL?: string

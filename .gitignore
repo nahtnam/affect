@@ -23,3 +23,5 @@ env/*/.env
 .vinxi
 __unconfig*
 todos.json
+env/*/.affect-deploy/
+env/**/*.key

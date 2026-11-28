@@ -182,6 +182,18 @@ const freePort = async () => {
 
 const dev = ['dev', '--codegen', 'disable', '--typecheck', 'disable']
 
+const shutdown = new AbortController()
+let foregroundExit: Promise<unknown> | undefined
+
+if (action === 'dev') {
+  process.once('SIGINT', () => {
+    shutdown.abort()
+  })
+  process.once('SIGTERM', () => {
+    shutdown.abort()
+  })
+}
+
 const start = async () => {
   const port = await freePort()
   const hostname = Str.slice(0, 16)(createHash('sha256').update(root).digest('hex'))
@@ -228,7 +240,13 @@ const start = async () => {
   })
 
   fs.closeSync(log)
-  child.unref()
+
+  if (action === 'dev') {
+    const exited = once(child, 'exit')
+    foregroundExit = Promise.race([exited, once(shutdown.signal, 'abort')])
+  } else {
+    child.unref()
+  }
 
   assert.ok(child.pid !== undefined, 'Failed to start Convex.')
 
@@ -242,7 +260,7 @@ const start = async () => {
       { stdio: 'ignore' },
     )
 
-    if (probe.status === 0) {
+    if (shutdown.signal.aborted || probe.status === 0) {
       return data
     }
 
@@ -295,6 +313,10 @@ if (action === 'setup') {
 
   fs.writeFileSync(versionFile, version)
   downloadLock.close()
+} else if (action === 'stop-owned') {
+  if (data?.pid === Number(argument)) {
+    await stop(data?.pid)
+  }
 } else if (action === 'stop' || action === 'reset') {
   await stop(data?.pid)
 
@@ -315,8 +337,12 @@ if (action === 'setup') {
     }
   }
 } else {
+  if (action === 'dev' && data !== undefined && running(data.pid)) {
+    throw new Error('Local Convex is already running. Stop it with bun run local:stop first.')
+  }
+
   if (data === undefined || !running(data.pid)) {
-    assert.equal(action, 'start', 'Run local:start first.')
+    assert.ok(action === 'start' || action === 'dev', 'Run local:start first.')
 
     await stop(data?.pid)
     data = await start()
@@ -326,7 +352,7 @@ if (action === 'setup') {
     run(['run', 'seed:populate'])
   }
 
-  if (action === 'start') {
+  if ((action === 'start' || action === 'dev') && !shutdown.signal.aborted) {
     process.stdout.write(`URL=${data.origin}\n`)
   }
 
@@ -354,3 +380,17 @@ if (action === 'setup') {
 }
 
 lock.close()
+
+if (action === 'dev' && data !== undefined) {
+  if (!shutdown.signal.aborted) {
+    await foregroundExit
+  }
+
+  const result = spawnSync(
+    process.execPath,
+    [import.meta.filename, 'stop-owned', String(data.pid)],
+    { stdio: 'inherit' },
+  )
+
+  process.exitCode = result.status ?? 1
+}

@@ -37,6 +37,7 @@ type Env = {
   readonly EMAIL_FROM_NAME: string | undefined;
   readonly POSTHOG_HOST: string | undefined;
   readonly POSTHOG_PROJECT_TOKEN: string;
+  readonly PREVIEW_INBOX_SECRET: string | undefined;
   readonly SITE_URL: string;
   readonly TRUSTED_ORIGINS: string;
 };

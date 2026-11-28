@@ -18,6 +18,6 @@ export const createEncryptedProfilePlugin = ({
       throw new Error(`Missing encrypted Affect profile: env/${profile}/.env`)
     }
 
-    assertEncryptedProfile(readFileSync(`${profileDirectory}.env`, 'utf-8'))
+    assertEncryptedProfile({ source: readFileSync(`${profileDirectory}.env`, 'utf-8'), profile })
   },
 })

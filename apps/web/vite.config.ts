@@ -13,6 +13,9 @@ export default defineConfig(({ command, isPreview }) => {
   const keyless = command === 'serve' && isPreview !== true && process.env['AFFECT_LOCAL'] === '1'
   const requestedProfile = process.env['VERCEL_ENV']
 
+  const previewInbox =
+    command === 'build' && process.env['VERCEL'] === '1' && requestedProfile === 'preview'
+
   const defaultProfile =
     process.env['CI'] === 'true' || process.env['GITHUB_ACTIONS'] === 'true' ? 'ci' : 'development'
 
@@ -36,6 +39,7 @@ export default defineConfig(({ command, isPreview }) => {
   })
 
   return {
+    define: { 'import.meta.env.AFFECT_PREVIEW_INBOX': String(previewInbox) },
     envDir: keyless ? false : '.',
     resolve: { tsconfigPaths: true },
     server: {
@@ -66,6 +70,7 @@ export default defineConfig(({ command, isPreview }) => {
     },
     plugins: [
       devtools({
+        removeDevtoolsOnBuild: !previewInbox,
         eventBusConfig: { enabled: false },
         consolePiping: { enabled: false },
       }),
@@ -76,6 +81,16 @@ export default defineConfig(({ command, isPreview }) => {
       !keyless &&
         nitro({
           serverDir: 'server',
+          handlers: previewInbox
+            ? [
+                {
+                  route: '/api/affect-dev/**',
+                  handler: fileURLToPath(
+                    new URL('server/affect-dev/preview.server.ts', import.meta.url),
+                  ),
+                },
+              ]
+            : [],
           // Keep dotenvx's CommonJS dependencies native in Node server artifacts.
           traceDeps: ['@dotenvx/dotenvx'],
           serverAssets: [{ baseName: 'affect-profile', dir: profileDirectory, pattern: '.env' }],

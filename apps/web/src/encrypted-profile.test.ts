@@ -3,6 +3,23 @@ import { describe, expect, it } from 'vitest'
 import { assertEncryptedProfile } from '../vite/encrypted-profile'
 
 describe('encrypted profile packaging', () => {
+  it('requires the inbox capability only in the preview profile', () => {
+    const standard = 'SETTING="encrypted:synthetic"'
+    const preview = `${standard}\nPREVIEW_INBOX_SECRET="encrypted:synthetic"`
+    expect(() => {
+      assertEncryptedProfile({ source: preview, profile: 'production' })
+    }).toThrow('Only the preview')
+    expect(() => {
+      assertEncryptedProfile({ source: standard, profile: 'preview' })
+    }).toThrow('Only the preview')
+    expect(() => {
+      assertEncryptedProfile({ source: preview, profile: 'preview' })
+    }).not.toThrow()
+    expect(() => {
+      assertEncryptedProfile({ source: standard, profile: 'production' })
+    }).not.toThrow()
+  })
+
   it('rejects unsafe assignments in either position among duplicates', () => {
     const encrypted = 'SECRET="encrypted:synthetic-ciphertext"'
     const plaintext = 'SECRET="synthetic-plaintext-secret"'
@@ -15,7 +32,7 @@ describe('encrypted profile packaging', () => {
       `${encrypted}\nDOTENV_PRIVATE_KEY=""\n${privateKey}`,
     ]) {
       expect(() => {
-        assertEncryptedProfile(source)
+        assertEncryptedProfile({ source })
       }).toThrow('Affect profiles must contain encrypted values and no private keys.')
     }
   })

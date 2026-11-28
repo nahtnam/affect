@@ -14,7 +14,7 @@ fail() {
 usage() {
   printf '%s\n' \
     'Usage: bash scripts/setup.sh [--local | --hosted <affect env init flags...>]' \
-    'Default: install tools and validate an existing local development profile.' \
+    'Default: validate an existing development key, or prepare anonymous local Convex without one.' \
     '--local: install the toolchain, dependencies without profiles.' \
     '--hosted: explicitly initialize or restore verified hosted profiles before local validation.' \
     'Hosted mode requires a released Affect CLI with env init support and separate provider authorization.'
@@ -33,9 +33,10 @@ esac
 command -v curl >/dev/null 2>&1 || fail 'Setup requires curl.'
 if [ "$setup_local" = 0 ] && [ "$setup_hosted" = 0 ]; then
   [ "$#" = 0 ] || fail 'Unexpected setup arguments. Use --help or --hosted followed by affect env init flags.'
-  [ -f env/development/.env ] || fail 'Provide the encrypted development profile at env/development/.env before setup.'
-  if [ -z "${DOTENV_PRIVATE_KEY:-}" ] && [ ! -f env/development/.env.keys ]; then
-    fail 'Provide the development DOTENV_PRIVATE_KEY before setup.'
+  if [ -z "${DOTENV_PRIVATE_KEY:-}" ] && [ ! -e env/development/.env.keys ] && [ ! -L env/development/.env.keys ]; then
+    setup_local=1
+  elif [ ! -f env/development/.env ]; then
+    fail 'Provide the encrypted development profile at env/development/.env before setup.'
   fi
 fi
 
