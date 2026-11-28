@@ -1,6 +1,7 @@
 import { Effect, Result, Schema, String } from 'effect'
 import { HttpClient, HttpClientRequest, HttpClientResponse } from 'effect/http'
 
+import { env as deployment } from './_generated/server'
 import { emailEnvironment, emailPreviewSender, emailSenderName } from './env'
 
 class EmailDeliveryError extends Schema.TaggedError<
@@ -15,6 +16,18 @@ const emailResponse = Schema.Struct({
   }),
   success: Schema.Literal(true),
 })
+
+export const previewInboxSecret = () => {
+  const secret = deployment.PREVIEW_INBOX_SECRET
+
+  return secret !== undefined &&
+    secret.length >= 32 &&
+    deployment.PREVIEW_INBOX_CLOUD_URL !== undefined &&
+    deployment.PREVIEW_INBOX_CLOUD_URL !== '' &&
+    deployment.PREVIEW_INBOX_CLOUD_URL === deployment.CONVEX_CLOUD_URL
+    ? secret
+    : undefined
+}
 
 export const verificationCodeLifetimeSeconds = 300
 
@@ -41,6 +54,16 @@ export const sendVerificationCode = Effect.fn('sendVerificationCode')(
     otp: string,
     capture?: (message: RenderedEmail) => void,
   ) {
+    if (previewInboxSecret() !== undefined) {
+      if (capture === undefined) {
+        return yield* EmailDeliveryError.make({ message: 'Use the preview inbox.' })
+      }
+
+      return yield* Effect.sync(() => {
+        capture(renderVerificationEmail(email, otp))
+      })
+    }
+
     const previewSender = yield* emailPreviewSender
 
     // Preserve legacy formatted senders without parsing or replacing their embedded name.

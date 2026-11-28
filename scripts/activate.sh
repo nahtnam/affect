@@ -18,5 +18,7 @@ if [ "$affect_activation_target" = development ] && [ -z "${DOTENV_PRIVATE_KEY:-
   fi
 fi
 
-source "$affect_activation_root/node_modules/affect-cli/scripts/activate.sh"
+if [[ -n ${DOTENV_PRIVATE_KEY:-} || ( "$affect_activation_target" != development && "$affect_activation_target" != ci ) ]]; then
+  source "$affect_activation_root/node_modules/affect-cli/scripts/activate.sh"
+fi
 unset affect_activation_root affect_activation_target

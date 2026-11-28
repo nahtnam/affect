@@ -2,6 +2,8 @@ name: Keyless local smoke
 on:
   pull_request:
     paths:
+      - scripts/dev.sh
+      - scripts/activate.sh
       - scripts/local.ts
       - scripts/setup.sh
       - scripts/mise.sh
@@ -14,6 +16,8 @@ on:
   push:
     branches: [main]
     paths:
+      - scripts/dev.sh
+      - scripts/activate.sh
       - scripts/local.ts
       - scripts/setup.sh
       - scripts/mise.sh
@@ -35,27 +39,33 @@ jobs:
         os: ${{ fromJSON(github.repository == 'nahtnam/affect' && '["ubuntu-latest","macos-latest"]' || '["ubuntu-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
-    env:
-      MISE_NO_ENV: '1'
     steps:
       - uses: actions/checkout@v4
-      - run: bash scripts/setup.sh --local
+      - run: bash scripts/setup.sh
       - shell: bash
         run: |
           set -euo pipefail
           if [[ "$RUNNER_OS" == Linux && -z "${OFFLINE:-}" ]]; then
             exec sudo unshare --net bash -ec '
               ip link set lo up
-              exec sudo -H -u "$SUDO_USER" env RUNNER_OS=Linux RUNNER_TEMP="$2" MISE_NO_ENV=1 OFFLINE=1 bash "$1"
+              exec sudo -H -u "$SUDO_USER" env RUNNER_OS=Linux RUNNER_TEMP="$2" OFFLINE=1 bash "$1"
             ' _ "$0" "$RUNNER_TEMP"
           fi
           local_app() { bash scripts/mise.sh exec -- bun --no-env-file run "local:$@"; }
           trap 'local_app stop' EXIT
-          output=$(local_app start --seed)
-          line=$(tail -n 1 <<< "$output")
+          bash scripts/mise.sh exec -- bun run dev >"$RUNNER_TEMP/dev.log" 2>&1 &
+          dev_pid=$!
+          for i in {1..240}; do
+            line=$(grep '^URL=' "$RUNNER_TEMP/dev.log" | tail -1) || true
+            [[ -z "$line" ]] || break
+            kill -0 "$dev_pid"
+            sleep 1
+          done
+          grep -q 'no development decryption key' "$RUNNER_TEMP/dev.log"
           [[ "$line" == URL=http://*.localhost:* ]]
           curl --fail --silent --show-error "${line#URL=}" -o "$RUNNER_TEMP/page"
           grep -q '>Affect</h1>' "$RUNNER_TEMP/page"
+          local_app seed
           [[ "$(local_app count)" == 1 ]]
           local_app seed
           [[ "$(local_app count)" == 1 ]]
@@ -71,6 +81,9 @@ jobs:
           assert_stopped() {
             if pgrep -g "$cli_pid" || pgrep -g "$vite_pid"; then exit 1; fi
           }
+          local_app stop
+          wait "$dev_pid"
+          local_app start
           crash_cli
           local_app stop
           assert_stopped

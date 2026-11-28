@@ -1,4 +1,6 @@
 import { devtools } from '@tanstack/devtools-vite'
+import { readFileSync } from 'node:fs'
+import { assertEncryptedProfile } from './vite/encrypted-profile'
 import { fileURLToPath } from 'node:url'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import tailwindcss from '@tailwindcss/vite'
@@ -13,6 +15,9 @@ export default defineConfig(({ command, isPreview }) => {
   const keyless = command === 'serve' && isPreview !== true && process.env['AFFECT_LOCAL'] === '1'
   const requestedProfile = process.env['VERCEL_ENV']
 
+  const vercelPreviewBuild =
+    command === 'build' && process.env['VERCEL'] === '1' && requestedProfile === 'preview'
+
   const defaultProfile =
     process.env['CI'] === 'true' || process.env['GITHUB_ACTIONS'] === 'true' ? 'ci' : 'development'
 
@@ -25,6 +30,10 @@ export default defineConfig(({ command, isPreview }) => {
 
   const profileDirectory = fileURLToPath(new URL(`../../env/${profile}/`, import.meta.url))
 
+  const previewInbox =
+    vercelPreviewBuild &&
+    assertEncryptedProfile({ source: readFileSync(`${profileDirectory}.env`, 'utf-8'), profile })
+
   const { host, port, portlessHost, portlessAuthority } = resolveServerOptions({
     command,
     isPreview,
@@ -36,6 +45,7 @@ export default defineConfig(({ command, isPreview }) => {
   })
 
   return {
+    define: { 'import.meta.env.AFFECT_PREVIEW_INBOX': String(previewInbox) },
     envDir: keyless ? false : '.',
     resolve: { tsconfigPaths: true },
     server: {
@@ -66,6 +76,7 @@ export default defineConfig(({ command, isPreview }) => {
     },
     plugins: [
       devtools({
+        removeDevtoolsOnBuild: !previewInbox,
         eventBusConfig: { enabled: false },
         consolePiping: { enabled: false },
       }),
@@ -76,6 +87,16 @@ export default defineConfig(({ command, isPreview }) => {
       !keyless &&
         nitro({
           serverDir: 'server',
+          handlers: previewInbox
+            ? [
+                {
+                  route: '/api/affect-dev/**',
+                  handler: fileURLToPath(
+                    new URL('server/affect-dev/preview.server.ts', import.meta.url),
+                  ),
+                },
+              ]
+            : [],
           // Keep dotenvx's CommonJS dependencies native in Node server artifacts.
           traceDeps: ['@dotenvx/dotenvx'],
           serverAssets: [{ baseName: 'affect-profile', dir: profileDirectory, pattern: '.env' }],

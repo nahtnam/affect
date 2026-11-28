@@ -84,28 +84,31 @@ describe('encrypted profile Vite lifecycle', () => {
     },
   )
 
-  it('allows a ciphertext profile with its public key through native build config resolution', async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), 'affect-profile-plugin-'))
-    directories.push(directory)
-    await writeFile(
-      path.join(directory, '.env'),
-      `${encrypted}\nDOTENV_PUBLIC_KEY="synthetic-public-key"`,
-    )
-    const downstream = vi.fn<() => void>()
+  it.each(['ci', 'preview'])(
+    'allows a %s profile without an inbox secret through build config resolution',
+    async (profile) => {
+      const directory = await mkdtemp(path.join(tmpdir(), 'affect-profile-plugin-'))
+      directories.push(directory)
+      await writeFile(
+        path.join(directory, '.env'),
+        `${encrypted}\nDOTENV_PUBLIC_KEY="synthetic-public-key"`,
+      )
+      const downstream = vi.fn<() => void>()
 
-    await resolveConfig(
-      {
-        root: directory,
-        configFile: false,
-        envDir: false,
-        plugins: [
-          { name: 'downstream-config', config: downstream },
-          createEncryptedProfilePlugin({ profileDirectory: `${directory}/`, profile: 'ci' }),
-        ],
-      },
-      'build',
-    )
+      await resolveConfig(
+        {
+          root: directory,
+          configFile: false,
+          envDir: false,
+          plugins: [
+            { name: 'downstream-config', config: downstream },
+            createEncryptedProfilePlugin({ profileDirectory: `${directory}/`, profile }),
+          ],
+        },
+        'build',
+      )
 
-    expect(downstream).toHaveBeenCalledOnce()
-  })
+      expect(downstream).toHaveBeenCalledOnce()
+    },
+  )
 })

@@ -1,0 +1,17 @@
+diff --git a/dist/index.js b/dist/index.js
+index d657360e4a8c980f0c4a114c1866264de16acff9..15d6716c6217fbe267fc4e0f73e9dec4ebeeae1d 100755
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -27053,6 +27053,12 @@ var runBuildCallback = fn2("Deploy.runBuildCallback")(function* runBuildCallback
+   const verified = yield* verifiedDeployment(selected, cloud, site).pipe(provide3(layer12), provideService2(RequestInit, { redirect: "error" }));
+   if (selected.target === "preview") {
+     const privateKey = yield* NonEmptyString2("DOTENV_PRIVATE_KEY").pipe(mapError2(() => failure3("Set the matching DOTENV_PRIVATE_KEY for the selected profile.")));
++    // Allow the workspace to derive settings from the provider-verified preview identity.
++    const prepare = import.meta.require((yield* Path).join(root, "convex", "env.config.ts")).preparePreviewSettings;
++    if (prepare) Object.assign(selected.values, yield* try_3({
++      try: () => prepare({ secret: selected.values.PREVIEW_INBOX_SECRET, cloud: verified.cloud }),
++      catch: (error) => failure3(error.message)
++    }));
+     const runtimeValues = {
+       VITE_CONVEX_SITE_URL: verified.site,
+       VITE_CONVEX_URL: verified.cloud

@@ -5,10 +5,10 @@ import { safeReturnTo } from '#/auth/return-to'
 import { SignInForm } from './-components/sign-in-form'
 
 const requestCode = async (email: string) => {
-  if (import.meta.env.DEV) {
+  if (import.meta.env.DEV || import.meta.env.AFFECT_PREVIEW_INBOX) {
     const devEmail = await import('#/affect-dev/client')
 
-    if (await devEmail.developmentEmailAvailable()) {
+    if (import.meta.env.AFFECT_PREVIEW_INBOX || (await devEmail.developmentEmailAvailable())) {
       return await devEmail.sendDevelopmentCode(email)
     }
   }

@@ -45,7 +45,7 @@ From the repository root, locally or in a cloud setup field:
 bash scripts/setup.sh
 ```
 
-The default command installs Mise, the pinned Bun 1.4.4 and Node 24.22.2, and frozen workspace dependencies, then verifies the **development** profile. It is noninteractive and repeatable. It requires Bash, curl, standard filesystem/archive utilities, public package/tool download access, provisioned ciphertext at `env/development/.env`, and its matching `DOTENV_PRIVATE_KEY` as an actual environment variable or the existing saved local keyfile. The template contains no encrypted profile; a key alone cannot create one or configure a backend. This default path never invokes hosted initialization.
+The default command installs Mise, the pinned Bun 1.4.4 and Node 24.22.2, and frozen workspace dependencies. With a development key it verifies the **development** profile. Without one it prepares anonymous local Convex. It is noninteractive and repeatable. Setup requires Bash, curl, standard filesystem/archive utilities and public package/tool download access. Keyed setup also needs provisioned ciphertext at `env/development/.env`, and its matching `DOTENV_PRIVATE_KEY` as an actual environment variable or the existing saved local keyfile. The template contains no encrypted profile; a key alone cannot create one or configure a backend. This default path never invokes hosted initialization.
 
 The development key is saved locally in ignored `env/development/.env.keys` with owner-only permissions, after successful validation. This lets later commands decrypt the profile even when a cloud provider exposes the key only during setup. Treat this local file as a credential: keep the workspace private, exclude it from artifacts, and delete it when retiring the environment. No decrypted profile or other setup secrets are saved. An HTTP proxy secret is a value injected into outbound HTTP requests; it is not process key material and cannot decrypt a profile. Package-download proxy credentials remain provider-owned and must be available again if a later install needs them.
 
@@ -58,14 +58,14 @@ VERCEL_ENV=development bash scripts/mise.sh exec -- bun run test -- tests/effect
 
 Setup preserves HOME and reuses an existing executable Mise when available. It respects explicit native directory settings and selects writable defaults, falling back to ignored `.setup.local` storage in the repository. Native path settings persist as data in owner-only `.setup.local/toolchain.paths`; keys, profile selectors and proxy credentials are excluded. Keep this local state out of exported artifacts. To change a native path, rerun setup with that setting.
 
-Explicit `VERCEL_ENV=development` keeps cloud runners with `CI=true` on the intended development profile. Setup always validates development but does not change native profile selection: `VERCEL_ENV`, then exact `CI=true` / `GITHUB_ACTIONS=true`, otherwise `development`. The stored development key is used only for development and only when no process `DOTENV_PRIVATE_KEY` is supplied. Preview, production and CI require their own matching process key; they never fall back to the saved development key.
+Explicit `VERCEL_ENV=development` keeps cloud runners with `CI=true` on the intended development profile. Keyed setup always validates development but does not change native profile selection: `VERCEL_ENV`, then exact `CI=true` / `GITHUB_ACTIONS=true`, otherwise `development`. The stored development key is used only for development and only when no process `DOTENV_PRIVATE_KEY` is supplied. Preview, production and CI require their own matching process key; they never fall back to the saved development key.
 
-`bun run dev` starts only the Portless web app. Use the advertised origin for browser requests and backend auth trust; Portless supplies `PORTLESS_URL`, so `VITE_SITE_URL` may be blank for this mode. For direct loopback, use `bun run dev:localhost` through the same Mise command and set `VITE_SITE_URL` to `http://localhost:3000`. Hosted authentication also requires the exact public origin, with matching `SITE_URL` and `TRUSTED_ORIGINS` in the selected backend. Default setup does not modify those settings, start a Convex watcher, sync, provision or deploy. Explicit `--hosted` authorizes the initialization workflow only; deployment remains a separate transition.
+`bash scripts/setup.sh` prepares an anonymous local backend when no development key is available. `bun run dev` uses that backend in the foreground until Ctrl-C. With a process key or the saved development key it starts the Portless web app against the development profile. An invalid key stops startup. Use the advertised origin for browser requests and backend auth trust; Portless supplies `PORTLESS_URL`, so `VITE_SITE_URL` may be blank for this mode. For direct loopback, use `bun run dev:localhost` through the same Mise command and set `VITE_SITE_URL` to `http://localhost:3000`. Hosted authentication also requires the exact public origin, with matching `SITE_URL` and `TRUSTED_ORIGINS` in the selected backend. Default setup does not modify those settings, start a Convex watcher, sync, provision or deploy. Explicit `--hosted` authorizes the initialization workflow only; deployment remains a separate transition.
 
-For keyless checks, disable profile directives:
+Keyless checks use ordinary Mise activation:
 
 ```sh
-MISE_NO_ENV=1 bash scripts/mise.sh exec -- bun run test -- tests/effect.test.ts
+bash scripts/mise.sh exec -- bun run test -- tests/effect.test.ts
 ```
 
 `affect env` prints secret-bearing shell exports; do not log it. Missing profile/key, invalid ciphertext, wrong key or incomplete public origins fail setup with a secret-safe error. Use the repository's normal instructions for subsequent work; there is no generic Start or setup skill to invoke.
@@ -94,7 +94,7 @@ This contract configures the web runtime. Convex backend settings, provider cred
 
 ## Current root commands
 
-- bun run dev: Portless front door for the web app.
+- bun run dev: development profile when keyed, otherwise foreground anonymous local Convex and Vite.
 - bun run dev:localhost: direct loopback web server.
 - bun run build, bun run start, bun run preview: app build and runtime commands.
 - bun run typecheck: root, Convex and web type checks.
@@ -126,6 +126,20 @@ Affect's app consumes `VITE_CONVEX_SITE_URL` for Better Auth. Convex's installed
 
 For previews, the CLI resolves the frontend origin from `VERCEL_URL` or an explicit `AFFECT_PREVIEW_ORIGIN` and uses the native branch deployment’s canonical Convex URLs. It applies the same origins to backend authentication, the browser build and a temporary encrypted runtime profile using the existing preview key. Deployment/provider controls stay out of that runtime payload; the committed profile is restored after the build. Native branch deployments are created or reused without resetting data.
 
+### Preview sign-in
+
+The preview inbox is optional. Without it, previews use ordinary email delivery when email settings are configured.
+
+Enable the inbox only on projects with Vercel Authentication protecting every preview URL. Any visitor who passes Vercel Authentication can request a code for **any email address** and sign in as that user on that preview backend. If protection is disabled, anyone with the preview URL can do this.
+
+From the repository root, add a generated server-only secret to the encrypted preview profile once, then include the updated encrypted profile in the site's next preview deployment:
+
+```sh
+bunx --no-install affect dotenvx -- set PREVIEW_INBOX_SECRET "$(openssl rand -hex 32)" -f env/preview/.env
+```
+
+The secret must contain at least 32 random characters. The deploy callback binds the inbox to the verified preview backend. Sign in on the exact configured preview origin and open Devtools → Emails → Load emails. The latest message belongs to that browser and expires after five minutes.
+
 ## Development references
 
 - [Mise installation and pinned installer options](https://mise.jdx.dev/installing-mise.html)
@@ -144,10 +158,10 @@ The combined integration guide is a starting point. This project additionally re
 ## Run locally without secrets
 
 Run `bash scripts/setup.sh --local` once per checkout while online. From any fresh shell in
-that checkout, use the pinned tools with dotenv loading disabled:
+that checkout, run `bun run dev`, or use the explicit background commands:
 
 ```sh
-local_app() { MISE_NO_ENV=1 bash scripts/mise.sh exec -- bun --no-env-file run "local:$@"; }
+local_app() { bash scripts/mise.sh exec -- bun --no-env-file run "local:$@"; }
 local_app start --seed   # prints URL=<origin> when ready
 local_app seed           # safe to repeat; customize convex/seed.ts
 local_app code           # gets a fresh Better Auth code for demo@example.test

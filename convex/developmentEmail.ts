@@ -18,8 +18,12 @@ type Capture = {
   message?: RenderedEmail & { code: string }
 }
 
-const sendCode = Effect.fn('AffectDev.sendSignInCode')(
-  function* sendSignInCode(ctx: ActionCtx, { cloudUrl, email, origin }: SendArgs) {
+export const sendCode = Effect.fn('AffectDev.sendSignInCode')(
+  function* sendSignInCode(
+    ctx: ActionCtx,
+    { cloudUrl, email, origin }: SendArgs,
+    preview: boolean,
+  ) {
     const settings = yield* authEnvironment
     const matches = yield* matchesEmailDeployment(cloudUrl)
 
@@ -27,9 +31,11 @@ const sendCode = Effect.fn('AffectDev.sendSignInCode')(
 
     if (
       !matches ||
-      !isLocalDevelopmentOrigin(settings.SITE_URL) ||
+      (preview
+        ? settings.SITE_URL.protocol !== 'https:' || origin !== settings.SITE_URL.origin
+        : !isLocalDevelopmentOrigin(settings.SITE_URL)) ||
       Option.isNone(requestOrigin) ||
-      !isLocalDevelopmentOrigin(requestOrigin.value) ||
+      (!preview && !isLocalDevelopmentOrigin(requestOrigin.value)) ||
       origin !== requestOrigin.value.origin ||
       (origin !== settings.SITE_URL.origin &&
         !some(settings.TRUSTED_ORIGINS, (allowed) => allowed.origin === origin))
@@ -110,7 +116,7 @@ const sendCode = Effect.fn('AffectDev.sendSignInCode')(
 
 export const send = internalAction({
   args: { cloudUrl: v.string(), email: v.string(), origin: v.string() },
-  handler: (ctx, args) => Effect.runPromise(sendCode(ctx, args)),
+  handler: (ctx, args) => Effect.runPromise(sendCode(ctx, args, false)),
   returns: v.union(
     v.object({ status: v.literal('unavailable') }),
     v.object({ status: v.literal('rateLimited') }),

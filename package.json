@@ -13,7 +13,7 @@
     "local:count": "node scripts/local.ts count",
     "local:start": "node scripts/local.ts start",
     "local:stop": "node scripts/local.ts stop",
-    "dev": "portless run --name affect-tanstack bun run --filter @affect/web dev",
+    "dev": "bash scripts/dev.sh",
     "dev:localhost": "bun run --filter @affect/web dev:localhost",
     "build": "bun run --filter @affect/web build",
     "start": "bun run --filter @affect/web start",
@@ -88,5 +88,8 @@
       "@tanstack/start-client-core#start-core/server-routes",
       "@tanstack/start-client-core#start-core/deployment"
     ]
+  },
+  "patchedDependencies": {
+    "affect-cli@0.0.7": "patches/affect-cli@0.0.7.patch"
   }
 }

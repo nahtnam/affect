@@ -12,7 +12,7 @@ import {
 
 const requestOptions = {
   cache: 'no-store',
-  credentials: 'omit',
+  credentials: import.meta.env.AFFECT_PREVIEW_INBOX ? 'same-origin' : 'omit',
   mode: 'same-origin',
   redirect: 'error',
 } satisfies RequestInit
@@ -56,7 +56,10 @@ const runDockHttp = <A, E>(
 }
 
 export const developmentEmailAvailable = (signal?: AbortSignal) => {
-  if (!import.meta.env.DEV || typeof window === 'undefined') {
+  if (
+    (!import.meta.env.DEV && !import.meta.env.AFFECT_PREVIEW_INBOX) ||
+    typeof window === 'undefined'
+  ) {
     return Promise.resolve(false)
   }
 

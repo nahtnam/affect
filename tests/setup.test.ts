@@ -409,23 +409,42 @@ esac
     expectSecretSafe(result)
   })
 
-  it.each(['profile', 'key'])(
-    'fails before tool installation when the %s is missing',
-    (missing) => {
-      if (missing === 'profile') {
-        rmSync(profilePath())
-      }
+  it('requires the encrypted development profile when a key is supplied', () => {
+    rmSync(profilePath())
+    const result = setup({ DOTENV_PRIVATE_KEY: key })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('encrypted development profile')
+  })
 
-      const result = setup(missing === 'profile' ? { DOTENV_PRIVATE_KEY: key } : {})
-      expect(result.status).toBe(1)
-      expect(result.stderr).toContain(
-        missing === 'profile' ? 'encrypted development profile' : 'DOTENV_PRIVATE_KEY',
-      )
-      expect(existsSync(path.join(fixture, 'mise-calls'))).toBeFalsy()
-      expect(existsSync(keyPath())).toBeFalsy()
-      expectSecretSafe(result)
-    },
-  )
+  it.each([
+    ['absent', 'Using local anonymous'],
+    ['present', 'Using development profile'],
+    ['wrong', 'check the file and its DOTENV_PRIVATE_KEY'],
+  ])('selects dev mode with a %s key', (kind, expected) => {
+    // Stop at the selected executable; neither branch starts a service in this fixture.
+    const bin = path.join(home, '.local/bin')
+
+    for (const executable of ['node', 'portless']) {
+      writeFileSync(path.join(bin, executable), '#!/bin/sh\nexit 0\n', { mode: 0o755 })
+    }
+
+    const result = spawnSync('/bin/bash', ['scripts/dev.sh'], {
+      cwd: fixture,
+      encoding: 'utf-8',
+      env: {
+        ...environment(
+          kind === 'absent'
+            ? {}
+            : { DOTENV_PRIVATE_KEY: kind === 'present' ? key : primitives.keypair().privateKey },
+        ),
+        PATH: `${bin}:${environment().PATH}`,
+      },
+    })
+
+    expect(result.status).toBe(kind === 'wrong' ? 1 : 0)
+    expect(result.stdout + result.stderr).toContain(expected)
+    expectSecretSafe(result)
+  })
 
   it('rejects an incorrect key without storing it or exposing secrets', () => {
     const wrongKey = primitives.keypair().privateKey

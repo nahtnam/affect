@@ -44,7 +44,7 @@ const isLocalRuntime = () => {
   )
 }
 
-const validFetch = (request: Request, origin: string) => {
+export const validFetch = ({ request, origin }: { request: Request; origin: string }) => {
   const { headers, method } = request
   const requestOrigin = headers.get('origin')
   const site = headers.get('sec-fetch-site')
@@ -93,7 +93,7 @@ export const getAffectDevTarget = ({
     (!portless && String.endsWith('.localhost')(url.hostname)) ||
     headers.get('host') !== url.host ||
     !validForwarding(headers, url, portless) ||
-    !validFetch(request, origin)
+    !validFetch({ request, origin })
   ) {
     return null
   }
