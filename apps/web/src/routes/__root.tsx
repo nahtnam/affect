@@ -19,7 +19,7 @@ import type { RouterContext } from '#/router'
 import appCss from '../styles.css?url'
 
 const DevelopmentDevtools =
-  import.meta.env.DEV || import.meta.env.AFFECT_PREVIEW_INBOX
+  !import.meta.env.SSR && (import.meta.env.DEV || import.meta.env.AFFECT_PREVIEW_INBOX)
     ? lazy(async () => {
         const devtools = await import('#/devtools')
 
