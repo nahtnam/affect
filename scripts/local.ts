@@ -190,7 +190,12 @@ if (action === 'dev') {
   const parent = process.ppid
 
   const watchParent = async () => {
-    while (!shutdown.signal.aborted && process.ppid === parent && process.ppid !== 1) {
+    // Started by PID 1 (a container entrypoint): there is no parent exit to watch for.
+    if (parent === 1) {
+      return
+    }
+
+    while (!shutdown.signal.aborted && process.ppid === parent) {
       await sleep(200, undefined, { ref: false })
     }
 
