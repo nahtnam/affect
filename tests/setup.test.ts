@@ -419,7 +419,7 @@ esac
   it.each([
     ['absent', 'Using local anonymous'],
     ['present', 'Using development profile'],
-    ['wrong', 'Cannot decrypt'],
+    ['wrong', 'check the file and its DOTENV_PRIVATE_KEY'],
   ])('selects dev mode with a %s key', (kind, expected) => {
     // Stop at the selected executable; neither branch starts a service in this fixture.
     const bin = path.join(home, '.local/bin')

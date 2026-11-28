@@ -17,6 +17,18 @@ const emailResponse = Schema.Struct({
   success: Schema.Literal(true),
 })
 
+export const previewInboxSecret = () => {
+  const secret = deployment.PREVIEW_INBOX_SECRET
+
+  return secret !== undefined &&
+    secret.length >= 32 &&
+    deployment.PREVIEW_INBOX_CLOUD_URL !== undefined &&
+    deployment.PREVIEW_INBOX_CLOUD_URL !== '' &&
+    deployment.PREVIEW_INBOX_CLOUD_URL === deployment.CONVEX_CLOUD_URL
+    ? secret
+    : undefined
+}
+
 export const verificationCodeLifetimeSeconds = 300
 
 export type RenderedEmail = {
@@ -42,7 +54,7 @@ export const sendVerificationCode = Effect.fn('sendVerificationCode')(
     otp: string,
     capture?: (message: RenderedEmail) => void,
   ) {
-    if (deployment.PREVIEW_INBOX_SECRET !== undefined && deployment.PREVIEW_INBOX_SECRET !== '') {
+    if (previewInboxSecret() !== undefined) {
       if (capture === undefined) {
         return yield* EmailDeliveryError.make({ message: 'Use the preview inbox.' })
       }

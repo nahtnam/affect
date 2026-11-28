@@ -88,5 +88,8 @@
       "@tanstack/start-client-core#start-core/server-routes",
       "@tanstack/start-client-core#start-core/deployment"
     ]
+  },
+  "patchedDependencies": {
+    "affect-cli@0.0.7": "patches/affect-cli@0.0.7.patch"
   }
 }

@@ -186,10 +186,23 @@ const shutdown = new AbortController()
 let foregroundExit: Promise<unknown> | undefined
 
 if (action === 'dev') {
-  process.once('SIGINT', () => {
+  // Bun can receive a signal at its PID alone and exit without signaling this process.
+  const parent = process.ppid
+
+  const watchParent = async () => {
+    while (!shutdown.signal.aborted && process.ppid === parent && process.ppid !== 1) {
+      await sleep(200, undefined, { ref: false })
+    }
+
+    shutdown.abort()
+  }
+
+  void watchParent()
+
+  process.on('SIGINT', () => {
     shutdown.abort()
   })
-  process.once('SIGTERM', () => {
+  process.on('SIGTERM', () => {
     shutdown.abort()
   })
 }

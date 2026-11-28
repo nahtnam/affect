@@ -1,6 +1,7 @@
 import { constantTimeEqual } from 'better-auth/crypto'
 import { Effect, Schema } from 'effect'
 import { env, httpAction } from './_generated/server'
+import { previewInboxSecret } from './email'
 import { sendCode } from './developmentEmail'
 import { httpRouter } from 'convex/server'
 
@@ -16,11 +17,10 @@ http.route({
   handler: httpAction((ctx, request) =>
     Effect.runPromise(
       Effect.gen(function* capturePreview() {
-        const secret = env.PREVIEW_INBOX_SECRET
+        const secret = previewInboxSecret()
 
         if (
           secret === undefined ||
-          secret.length < 32 ||
           !constantTimeEqual(request.headers.get('authorization') ?? '', `Bearer ${secret}`)
         ) {
           return new Response(null, { status: 404 })

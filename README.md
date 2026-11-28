@@ -128,13 +128,17 @@ For previews, the CLI resolves the frontend origin from `VERCEL_URL` or an expli
 
 ### Preview sign-in
 
-Keep Vercel Authentication enabled for every preview URL. Set a random, server-only
-`PREVIEW_INBOX_SECRET` of at least 32 characters in the encrypted preview profile only.
-Keep the three Cloudflare email settings present with empty values. CLI 0.0.7
-distributes the secret to the verified preview and its encrypted Nitro runtime.
-Sign in on the exact configured preview origin and open Devtools → Emails → Load emails.
-The latest message belongs to that browser and expires after five minutes.
-Treat preview access as permission to sign in as any user of that preview.
+The preview inbox is optional. Without it, previews use ordinary email delivery when email settings are configured.
+
+Enable the inbox only on projects with Vercel Authentication protecting every preview URL. Any visitor who passes Vercel Authentication can request a code for **any email address** and sign in as that user on that preview backend. If protection is disabled, anyone with the preview URL can do this.
+
+From the repository root, add a generated server-only secret to the encrypted preview profile once, then include the updated encrypted profile in the site's next preview deployment:
+
+```sh
+bunx --no-install affect dotenvx -- set PREVIEW_INBOX_SECRET "$(openssl rand -hex 32)" -f env/preview/.env
+```
+
+The secret must contain at least 32 random characters. The deploy callback binds the inbox to the verified preview backend. Sign in on the exact configured preview origin and open Devtools → Emails → Load emails. The latest message belongs to that browser and expires after five minutes.
 
 ## Development references
 

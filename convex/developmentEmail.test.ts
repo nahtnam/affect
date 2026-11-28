@@ -23,6 +23,7 @@ const Captured = Schema.Struct({
 describe('private development email bridge', () => {
   beforeEach(() => {
     vi.stubEnv('PREVIEW_INBOX_SECRET', undefined)
+    vi.stubEnv('PREVIEW_INBOX_CLOUD_URL', undefined)
     vi.stubEnv('CONVEX_CLOUD_URL', cloudUrl)
     vi.stubEnv('SITE_URL', origin)
     vi.stubEnv('TRUSTED_ORIGINS', origin)
@@ -46,6 +47,7 @@ describe('private development email bridge', () => {
     const withoutCapability = await sendPreview(secret)
     expect(withoutCapability.status).toBe(404)
     vi.stubEnv('PREVIEW_INBOX_SECRET', secret)
+    vi.stubEnv('PREVIEW_INBOX_CLOUD_URL', cloudUrl)
     const wrongBearer = await sendPreview('wrong')
     expect(wrongBearer.status).toBe(404)
     const response = await sendPreview(secret)
@@ -53,6 +55,26 @@ describe('private development email bridge', () => {
     expect(captured.email.to).toBe(email)
     expect(cloudflareFetch).not.toHaveBeenCalled()
   })
+
+  it.each([undefined, 'https://other-preview.convex.cloud'])(
+    'delivers ordinary mail and hides the inbox outside the bound deployment (%s)',
+    async (binding) => {
+      const secret = 'synthetic-preview-secret-of-at-least-32-characters'
+      vi.stubEnv('PREVIEW_INBOX_SECRET', secret)
+      vi.stubEnv('PREVIEW_INBOX_CLOUD_URL', binding)
+      const t = setup()
+
+      const response = await t.fetch('/affect-preview/email', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${secret}` },
+      })
+
+      expect(response.status).toBe(404)
+      const delivery = await requestVerificationOTP(t)
+      expect(delivery.status).toBe(200)
+      expect(cloudflareFetch).toHaveBeenCalledOnce()
+    },
+  )
 
   it('uses native verification for the captured code', async () => {
     vi.stubEnv('CLOUDFLARE_ACCOUNT_ID', undefined)

@@ -16,8 +16,8 @@ export const assertEncryptedProfile = ({
     parsed['PREVIEW_INBOX_SECRET'] ?? [],
   )
 
-  if (profile !== undefined && (profile === 'preview') !== hasInboxSecret) {
-    throw new Error('Only the preview profile must contain an encrypted PREVIEW_INBOX_SECRET.')
+  if (profile !== undefined && profile !== 'preview' && hasInboxSecret) {
+    throw new Error('Only the preview profile may contain an encrypted PREVIEW_INBOX_SECRET.')
   }
 
   if (
@@ -37,4 +37,6 @@ export const assertEncryptedProfile = ({
   ) {
     throw new Error('Affect profiles must contain encrypted values and no private keys.')
   }
+
+  return hasInboxSecret
 }
